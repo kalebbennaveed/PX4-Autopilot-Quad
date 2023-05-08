@@ -79,6 +79,8 @@ px4_add_romfs_files(
 
 	5001_gazebo-classic_visquad
 
+	5001_gazebo-classic_visquad
+
 	6011_gazebo-classic_typhoon_h480
 	6011_gazebo-classic_typhoon_h480.post
 

@@ -58,7 +58,7 @@ void QuadControl::parameters_update() {
     // update the mixer G matrix
     _mixer.construct_G_matrix();
 
-   // update the esc nonlinearity
+    // update the esc nonlinearity
     _mixer.set_esc_nonlinearity(_param_quad_esc_nonlinearity.get());
 
     _land_speed = _param_quad_land_speed.get();
@@ -195,7 +195,7 @@ void QuadControl::Run() {
 
     // copy from the _setpoint msg
     Vector4f motor_cmd(_setpoint.cmd[0], _setpoint.cmd[1], _setpoint.cmd[2],
-                 _setpoint.cmd[3]);
+                       _setpoint.cmd[3]);
 
     // publish
     publish_cmd(motor_cmd);
@@ -207,27 +207,25 @@ void QuadControl::Run() {
 }
 
 void QuadControl::publish_cmd(Vector4f cmd) {
-{
-  // publish for sitl
-  actuator_outputs_s msg;
-  msg.timestamp = hrt_absolute_time();
-  for (size_t i = 0; i < 4; i++) {
-    msg.output[i] = cmd(i);
+  {
+    // publish for sitl
+    actuator_outputs_s msg;
+    msg.timestamp = hrt_absolute_time();
+    for (size_t i = 0; i < 4; i++) {
+      msg.output[i] = cmd(i);
+    }
+    _actuator_outputs_sim_pub.publish(msg);
   }
-  _actuator_outputs_sim_pub.publish(msg);
-}
-{ 
- // publish for hardware
-  actuator_motors_s msg;
-  msg.timestamp = hrt_absolute_time();
-  msg.reversible_flags = 0; // no motors are reversible
-  for (size_t i = 0; i < 4; i++) {
-    msg.control[i] = cmd(i);
+  {
+    // publish for hardware
+    actuator_motors_s msg;
+    msg.timestamp = hrt_absolute_time();
+    msg.reversible_flags = 0; // no motors are reversible
+    for (size_t i = 0; i < 4; i++) {
+      msg.control[i] = cmd(i);
+    }
+    _actuator_motors_pub.publish(msg);
   }
- _actuator_motors_pub.publish(msg);
-
- 
-}
 }
 
 int QuadControl::task_spawn(int argc, char *argv[]) {
@@ -252,7 +250,6 @@ int QuadControl::task_spawn(int argc, char *argv[]) {
 
   return PX4_ERROR;
 }
-
 
 int QuadControl::custom_command(int argc, char *argv[]) {
   return print_usage("unknown command");

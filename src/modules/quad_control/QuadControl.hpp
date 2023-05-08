@@ -12,22 +12,18 @@
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
-#include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/actuator_motors.h>
+#include <uORB/topics/actuator_outputs.h>
+#include <uORB/topics/commander_status.h>
 #include <uORB/topics/parameter_update.h>
-// #include <uORB/topics/vehicle_angular_acceleration.h>
+#include <uORB/topics/trajectory_setpoint.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude.h>
-// #include <uORB/topics/vehicle_control_mode.h>
-#include <uORB/topics/commander_status.h>
-#include <uORB/topics/trajectory_setpoint.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_status.h>
 
 #include "Controllers/GeometricController.hpp"
-#include "Controllers/IndiGeometricController.hpp"
-#include "Controllers/MixerLinear.hpp"
 #include "Controllers/MixerQuadratic.hpp"
 
 using namespace time_literals;
@@ -115,7 +111,7 @@ private:
       (ParamFloat<px4::params::QUAD_KTHRUST>)_param_quad_kThrust,
       (ParamFloat<px4::params::QUAD_KTORQUE>)_param_quad_kTorque,
       (ParamFloat<px4::params::QUAD_OMEGA_MAX>)_param_quad_omegaMax,
-      (ParamFloat<px4::params::QUAD_ESC_NONLIN>) _param_quad_esc_nonlinearity,
+      (ParamFloat<px4::params::QUAD_ESC_NONLIN>)_param_quad_esc_nonlinearity,
       (ParamFloat<px4::params::QUAD_LAND_SPEED>)_param_quad_land_speed,
       (ParamFloat<px4::params::QUAD_ROT1_POSX>)_param_quad_rot1_pos_x,
       (ParamFloat<px4::params::QUAD_ROT2_POSX>)_param_quad_rot2_pos_x,
