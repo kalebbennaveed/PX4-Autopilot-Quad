@@ -371,7 +371,7 @@ public:
 		write_string(string, n);
 		printf("%s\n", string);
 	}
-
+	
 	Matrix<Type, N, M> transpose() const
 	{
 		Matrix<Type, N, M> res;

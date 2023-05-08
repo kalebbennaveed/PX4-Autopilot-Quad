@@ -58,6 +58,8 @@ set(msg_files
 	CellularStatus.msg
 	CollisionConstraints.msg
 	CollisionReport.msg
+	CommanderSetState.msg
+	CommanderStatus.msg
 	ControlAllocatorStatus.msg
 	Cpuload.msg
 	DebugArray.msg
@@ -137,6 +139,8 @@ set(msg_files
 	OrbTest.msg
 	OrbTestLarge.msg
 	OrbTestMedium.msg
+	ParameterReq.msg
+	ParameterRes.msg
 	ParameterUpdate.msg
 	Ping.msg
 	PositionControllerLandingStatus.msg

@@ -76,8 +76,10 @@ private:
 
 	const bool _localhost_only;
 	const bool _custom_participant;
-	const char *_client_namespace;
-
+	
+	static const uint8_t CLIENT_NAMESPACE_MAX_LENGTH = 32;
+	char _client_namespace[CLIENT_NAMESPACE_MAX_LENGTH];
+	//const char* _client_namespace;
 
 	// max port characters (5+'\0')
 	static const uint8_t PORT_MAX_LENGTH = 6;

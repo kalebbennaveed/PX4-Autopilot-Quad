@@ -340,7 +340,8 @@ else
 		fi
 
 		sensors start -h
-		commander start -h
+		# commander start -h
+		simple_commander start -h
 		# disable GPS
 		param set GPS_1_CONFIG 0
 
@@ -378,7 +379,8 @@ else
 		fi
 
 		sensors start
-		commander start
+		# commander start
+		simple_commander start
 
 		dshot start
 		pwm_out start
@@ -427,7 +429,7 @@ else
 	#
 	# Start the navigator.
 	#
-	navigator start
+	#navigator start
 
 	#
 	# Start a thermal calibration if required.

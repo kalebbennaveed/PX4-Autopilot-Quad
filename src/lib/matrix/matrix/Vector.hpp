@@ -153,6 +153,26 @@ public:
 	{
 		(*this).transpose().print();
 	}
+	
+	Vector zero_if_nan() const
+	{
+
+		const Vector &a(*this);
+		Vector r;
+
+		bool has_nan = false;
+		for (size_t i=0; i < M; i++ && !has_nan){
+			if (!PX4_ISFINITE(a(i))) {
+				has_nan = true;
+			}
+		}
+
+		if (has_nan) {
+			return r;
+		} else {
+			return a;
+		}
+	}
 };
 
 template<typename OStream, typename Type, size_t M>

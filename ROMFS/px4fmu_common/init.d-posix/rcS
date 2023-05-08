@@ -250,19 +250,20 @@ tone_alarm start
 rc_update start
 manual_control start
 sensors start
-commander start
+#commander start
+simple_commander start
 
-if ! pwm_out_sim start -m sim
-then
-	tune_control play error
-fi
+# if ! pwm_out_sim start -m sim
+# then
+# 	tune_control play error
+# fi
 
 #
 # Configure vehicle type specific parameters.
 # Note: rc.vehicle_setup is the entry point for all vehicle type specific setup.
 . ${R}etc/init.d/rc.vehicle_setup
 
-navigator start
+# navigator start
 
 # Try to start the microdds_client with UDP transport if module exists
 microdds_ns=""
