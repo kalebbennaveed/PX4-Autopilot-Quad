@@ -2,28 +2,27 @@
 // Devansh Agrawal
 // April 2023
 
-
 /**
  * Position controller gain kx
  *
  * @min 0.0
- * @max 5.0
+ * @max 50.0
  * @decimal 3
  * @increment 0.01
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_KX, 1.0f);
+PARAM_DEFINE_FLOAT(QUAD_KX, 11.29f);
 
 /**
  * Position controller gain kv
  *
  * @min 0.0
- * @max 5.0
+ * @max 50.0
  * @decimal 3
  * @increment 0.01
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_KV, 2.0f);
+PARAM_DEFINE_FLOAT(QUAD_KV, 6.97f);
 
 /**
  * Position controller gain ki
@@ -40,12 +39,12 @@ PARAM_DEFINE_FLOAT(QUAD_KI, 0.001f);
  * Position controller gain kR
  *
  * @min 0.0
- * @max 1.0
+ * @max 10.0
  * @decimal 3
  * @increment 0.01
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_KR, 0.35f);
+PARAM_DEFINE_FLOAT(QUAD_KR, 1.2f);
 
 /**
  * Position controller gain kOmega
@@ -56,7 +55,7 @@ PARAM_DEFINE_FLOAT(QUAD_KR, 0.35f);
  * @increment 0.01
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_KOMEGA, 0.15f);
+PARAM_DEFINE_FLOAT(QUAD_KOMEGA, 0.25f);
 
 /**
  * Mass of Quadrotor
@@ -68,7 +67,7 @@ PARAM_DEFINE_FLOAT(QUAD_KOMEGA, 0.15f);
  * @increment 0.01
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_M, 0.8f);
+PARAM_DEFINE_FLOAT(QUAD_M, 1.5f);
 
 /**
  * Moment of inertia about xx axis
@@ -80,7 +79,7 @@ PARAM_DEFINE_FLOAT(QUAD_M, 0.8f);
  * @increment 0.001
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_JXX, 0.005);
+PARAM_DEFINE_FLOAT(QUAD_JXX, 0.029);
 
 /**
  * Moment of inertia about yy axis
@@ -92,7 +91,7 @@ PARAM_DEFINE_FLOAT(QUAD_JXX, 0.005);
  * @increment 0.001
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_JYY, 0.005);
+PARAM_DEFINE_FLOAT(QUAD_JYY, 0.029);
 
 /**
  * Moment of inertia about zz axis
@@ -104,7 +103,7 @@ PARAM_DEFINE_FLOAT(QUAD_JYY, 0.005);
  * @increment 0.001
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_JZZ, 0.009);
+PARAM_DEFINE_FLOAT(QUAD_JZZ, 0.055);
 
 /**
  * Motor Thrust Coefficient (N / (kilo-rad/s)^2 ) 
@@ -115,7 +114,7 @@ PARAM_DEFINE_FLOAT(QUAD_JZZ, 0.009);
  * @increment 0.01
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_KTHRUST, 5.48);
+PARAM_DEFINE_FLOAT(QUAD_KTHRUST, 5.84);
 
 /**
  * Motor Torque Coefficient (N m / (kilo-rad/s)^2) 
@@ -126,8 +125,7 @@ PARAM_DEFINE_FLOAT(QUAD_KTHRUST, 5.48);
  * @increment 0.01
  * @group QuadControl
  */
-PARAM_DEFINE_FLOAT(QUAD_KTORQUE, 0.33);
-
+PARAM_DEFINE_FLOAT(QUAD_KTORQUE, 0.35);
 
 /**
  * Max Motor Speed (krad/s)

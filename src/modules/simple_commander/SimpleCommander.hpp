@@ -2,6 +2,7 @@
 
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
+#include <px4_platform_common/shutdown.h>
 
 // Publications
 #include <uORB/Publication.hpp>

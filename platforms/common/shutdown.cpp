@@ -205,7 +205,7 @@ static void shutdown_worker(void *arg)
 	}
 }
 
-#if defined(CONFIG_BOARDCTL_RESET)
+#if defined(CONFIG_BOARDCTL_RESET) || defined(__PX4_POSIX)
 int px4_reboot_request(bool to_bootloader, uint32_t delay_us)
 {
 	pthread_mutex_lock(&shutdown_mutex);

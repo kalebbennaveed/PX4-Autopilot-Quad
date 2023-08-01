@@ -29,6 +29,9 @@ publications:
   - topic: /fmu/out/parameter_res
     type: px4_msgs::msg::ParameterRes
 
+  - topic: /fmu/out/battery_status
+    type: px4_msgs::msg::BatteryStatus
+
 subscriptions:
 
   - topic: /fmu/in/commander_set_state

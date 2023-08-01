@@ -2,6 +2,7 @@
 // March 2023
 
 #include "SimpleCommander.hpp"
+#include <px4_platform_common/shutdown.h>
 
 using namespace time_literals;
 
@@ -21,6 +22,14 @@ void SimpleCommander::handle_parameter_req() {
   // grab the request message
   parameter_req_s req;
   _parameter_req_sub.copy(&req);
+
+  // if the param name is "reboot" do a system reboot
+  if (strcmp(req.param_name, "reboot") == 0) {
+    px4_reboot_request();
+    // px4_shutdown_request(400_ms);
+    PX4_WARN("REBOOT REQUEST");
+    return;
+  }
 
   // find the param
   char name[17];

@@ -82,7 +82,7 @@ __EXPORT int px4_unregister_shutdown_hook(shutdown_hook_t hook);
  * @param delay_us optional delay in microseconds
  * @return 0 on success, <0 on error
  */
-#if defined(CONFIG_BOARDCTL_RESET)
+#if defined(CONFIG_BOARDCTL_RESET) || defined(__PX4_POSIX)
 __EXPORT int px4_reboot_request(bool to_bootloader = false, uint32_t delay_us = 0);
 #endif // CONFIG_BOARDCTL_RESET
 
