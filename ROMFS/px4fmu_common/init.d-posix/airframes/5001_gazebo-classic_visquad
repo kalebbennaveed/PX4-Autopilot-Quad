@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# @name 3DR Iris Quadrotor SITL
+# @name Vision Quadrotor SITL
 #
 # @type Quadrotor Wide
 #
-# @maintainer Julian Oes <julian@oes.ch>
+# @maintainer Devansh Agrawal <devansh@umich.edu>
 #
 
 . ${R}etc/init.d/rc.mc_defaults
@@ -31,15 +31,37 @@ param set-default PWM_MAIN_FUNC2 102
 param set-default PWM_MAIN_FUNC3 103
 param set-default PWM_MAIN_FUNC4 104
 
-
 # set parameters that force it to use vision position estimation
 param set-default EKF2_EV_CTRL 11
 param set-default EKF2_GPS_CTRL 0
 param set-default EKF2_HGT_REF 3 # vision
 
+# set the quadrotor parameters
+
+param set-default QUAD_M 0.7
+param set-default QUAD_JXX 0.0025
+param set-default QUAD_JYY 0.0025
+param set-default QUAD_JZZ 0.0050
+
+param set-default QUAD_KTHRUST 1.37
+param set-default QUAD_KTORQUE 0.137
+param set-default QUAD_OMEGA_MAX 2.5
+
+param set-default QUAD_ROT1_POSX 0.075
+param set-default QUAD_ROT1_POSY 0.075
+param set-default QUAD_ROT2_POSX -0.075
+param set-default QUAD_ROT2_POSY -0.075
+param set-default QUAD_ROT3_POSX 0.075
+param set-default QUAD_ROT3_POSY -0.075
+param set-default QUAD_ROT4_POSX -0.075
+param set-default QUAD_ROT4_POSY 0.075
+
+
 # set the controller parameters specific to this quad
-param set-default QUAD_KX 7.0
-param set-default QUAD_KV 5.0
-param set-default QUAD_KR 1.2
-param set-default QUAD_KOMEGA 0.3
+param set-default QUAD_KX 6.0
+param set-default QUAD_KV 4.0
+param set-default QUAD_KI 0.0005
+param set-default QUAD_KR 0.75
+param set-default QUAD_KOMEGA 0.09
+
 
