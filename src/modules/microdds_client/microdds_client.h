@@ -49,7 +49,7 @@ public:
 	};
 
 	MicroddsClient(Transport transport, const char *device, int baudrate, const char *host, const char *port,
-		       bool localhost_only, bool custom_participant, const char *client_namespace);
+		       bool localhost_only, bool custom_participant, const char *client_namespace, bool use_discovery, const char * discovery_server_ip, const char * discovery_server_port);
 
 	~MicroddsClient();
 
@@ -76,6 +76,7 @@ private:
 
 	const bool _localhost_only;
 	const bool _custom_participant;
+	const bool _use_discovery;
 	
 	static const uint8_t CLIENT_NAMESPACE_MAX_LENGTH = 32;
 	char _client_namespace[CLIENT_NAMESPACE_MAX_LENGTH];
@@ -90,6 +91,8 @@ private:
 	char _port[PORT_MAX_LENGTH];
 	char _agent_ip[AGENT_IP_MAX_LENGTH];
 #endif
+	char _discovery_server_ip[AGENT_IP_MAX_LENGTH];
+	char _discovery_server_port[PORT_MAX_LENGTH];
 
 	SendTopicsSubs *_subs{nullptr};
 	RcvTopicsPubs *_pubs{nullptr};

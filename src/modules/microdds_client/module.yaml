@@ -64,3 +64,65 @@ parameters:
             reboot_required: true
             default: 2130706433
             requires_ethernet: true
+
+        XRCE_DISC_USE: 
+            description:
+                    short: boolean determining if we use Micro DDS Discovery Server
+                    long: | 
+                            whether or not we are using the discovery server, 0 = false, 1 = true
+            type: int32
+            reboot_required: true
+            default: 0
+        
+        XRCE_DISC_IP1:
+            description:
+                short: Micro DDS Discovery Server IP address (first octet)
+                long: |
+                    if the parameter is not 0, the discovery server with this IP address will be set and used.
+                    uses the decimal dot notation, this is the first octect
+            type: int32
+            reboot_required: true
+            default: 127
+
+        XRCE_DISC_IP2:
+            description:
+                short: Micro DDS Discovery Server IP address (second octet)
+                long: |
+                    if the parameter is not 0, the discovery server with this IP address will be set and used.
+                    uses the decimal dot notation, this is the first octect
+            type: int32
+            reboot_required: true
+            default: 0
+
+        XRCE_DISC_IP3:
+            description:
+                short: Micro DDS Discovery Server IP address (third octet)
+                long: |
+                    if the parameter is not 0, the discovery server with this IP address will be set and used.
+                    uses the decimal dot notation, this is the first octect
+            type: int32
+            reboot_required: true
+            default: 0
+
+        XRCE_DISC_IP4:
+            description:
+                short: Micro DDS Discovery Server IP address (fourth octet)
+                long: |
+                    if the parameter is not 0, the discovery server with this IP address will be set and used.
+                    uses the decimal dot notation, this is the first octect
+            type: int32
+            reboot_required: true
+            default: 1
+
+        XRCE_DISC_PRT:
+            description:
+                short: Micro DDS Discovery Server Port
+                long: |
+                    if using the discovery server, this this port will be set and used.
+            type: int32
+            min: 0
+            max: 65535
+            reboot_required: true
+            default: 11811
+
+

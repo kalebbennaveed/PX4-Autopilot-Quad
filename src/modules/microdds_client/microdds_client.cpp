@@ -80,9 +80,9 @@ void on_time(uxrSession *session, int64_t current_time, int64_t received_timesta
 }
 
 MicroddsClient::MicroddsClient(Transport transport, const char *device, int baudrate, const char *agent_ip,
-			       const char *port, bool localhost_only, bool custom_participant, const char *client_namespace) :
+			       const char *port, bool localhost_only, bool custom_participant, const char *client_namespace, bool use_discovery, const char * discovery_server_ip, const char * discovery_server_port) :
 	ModuleParams(nullptr),
-	_localhost_only(localhost_only), _custom_participant(custom_participant)
+	_localhost_only(localhost_only), _custom_participant(custom_participant), _use_discovery(use_discovery)
 {
 	// copy over the namespace
 	strncpy(_client_namespace, client_namespace, CLIENT_NAMESPACE_MAX_LENGTH - 1);
@@ -140,6 +140,12 @@ MicroddsClient::MicroddsClient(Transport transport, const char *device, int baud
 #else
 		PX4_ERR("UDP not supported");
 #endif
+	}
+
+	if (_use_discovery)
+	{
+		strncpy(_discovery_server_ip, discovery_server_ip, AGENT_IP_MAX_LENGTH-1);
+		strncpy(_discovery_server_port, discovery_server_port, PORT_MAX_LENGTH-1);
 	}
 }
 
@@ -235,38 +241,124 @@ void MicroddsClient::run()
 		// 			   participant_name, UXR_REPLACE);
 
 		char participant_xml[PARTICIPANT_XML_SIZE];
-		int ret = snprintf(participant_xml, PARTICIPANT_XML_SIZE, "%s<name>%s/px4_micro_xrce_dds</name>%s",
-				   _localhost_only ?
+		// int ret = snprintf(participant_xml, PARTICIPANT_XML_SIZE, "%s<name>%s/px4_micro_xrce_dds</name>%s",
+		// 		   _localhost_only ?
+		// 		   "<dds>"
+		// 		   "<profiles>"
+		// 		   "<transport_descriptors>"
+		// 		   "<transport_descriptor>"
+		// 		   "<transport_id>udp_localhost</transport_id>"
+		// 		   "<type>UDPv4</type>"
+		// 		   "<interfaceWhiteList><address>127.0.0.1</address></interfaceWhiteList>"
+		// 		   "</transport_descriptor>"
+		// 		   "</transport_descriptors>"
+		// 		   "</profiles>"
+		// 		   "<participant>"
+		// 		   "<rtps>"
+		// 		   :
+		// 		   "<dds>"
+		// 		   "<participant>"
+		// 		   "<rtps>",
+		// 		   _client_namespace != nullptr ?
+		// 		   _client_namespace
+		// 		   :
+		// 		   "",
+		// 		   _localhost_only ?
+		// 		   "<useBuiltinTransports>false</useBuiltinTransports>"
+		// 		   "<userTransports><transport_id>udp_localhost</transport_id></userTransports>"
+		// 		   "</rtps>"
+		// 		   "</participant>"
+		// 		   "</dds>"
+		// 		   :
+		// 		   "</rtps>"
+		// 		   "</participant>"
+		// 		   "</dds>"
+		// 		  );
+		//
+		
+		// create the transport profile 
+		char transport_descriptors_xml[PARTICIPANT_XML_SIZE] = {0};
+		char user_transports_xml[PARTICIPANT_XML_SIZE] = {0};
+		if (_localhost_only) {
+
+			int ret1 = snprintf(transport_descriptors_xml, PARTICIPANT_XML_SIZE, 
+		 		   "<transport_descriptors>"
+		 		   "<transport_descriptor>"
+		 		   "<transport_id>udp_localhost</transport_id>"
+		 		   "<type>UDPv4</type>"
+		 		   "<interfaceWhiteList><address>127.0.0.1</address></interfaceWhiteList>"
+		 		   "</transport_descriptor>"
+		 		   "</transport_descriptors>"
+				   );
+			int ret2 = snprintf(user_transports_xml, PARTICIPANT_XML_SIZE,
+		 		   "<useBuiltinTransports>false</useBuiltinTransports>"
+		 		   "<userTransports><transport_id>udp_localhost</transport_id></userTransports>"
+				   );
+
+			if (!ret1 || !ret2) {
+				PX4_ERR("failed to create user transports; exiting");
+				return;
+			}
+
+		}
+
+		
+		// create the substring for the superclient
+		char remote_server_guid[PARTICIPANT_XML_SIZE] = {0};
+		char discovery_xml[PARTICIPANT_XML_SIZE] = {0};
+
+		if (_use_discovery) {
+	        int ret1 = snprintf(remote_server_guid, PARTICIPANT_XML_SIZE,  "44.53.%02x.5f.45.50.52.4f.53.49.4d.41", 
+				domain_id); //  (dev): not sure if this will always work, but I think it should ? 
+		int ret2 = snprintf(discovery_xml, PARTICIPANT_XML_SIZE, 
+				   "<builtin>"
+                     		   "<discovery_config>"
+                                   "<discoveryProtocol>SUPER_CLIENT</discoveryProtocol>"
+                                   "<discoveryServersList>"
+                                   "<RemoteServer prefix=\"%s\">"
+                                   "<metatrafficUnicastLocatorList>"
+                                   "<locator>"
+                                   "<udpv4>"
+                                   "<address>%s</address>"
+                                   "<port>%s</port>"
+                                   "</udpv4>"
+                                   "</locator>"
+                                   "</metatrafficUnicastLocatorList>"
+                                   "</RemoteServer>"
+                                   "</discoveryServersList>"
+                                   "</discovery_config>"
+                                   "</builtin>", 
+				   remote_server_guid, 
+				   _discovery_server_ip, 
+				   _discovery_server_port);
+
+		if (!ret1 || !ret2) {
+			PX4_ERR("failed to create the discovery config; exiting");
+			return;
+		}
+		}
+
+	        // now actually create the profile	
+		int ret = snprintf(participant_xml, PARTICIPANT_XML_SIZE, 
 				   "<dds>"
 				   "<profiles>"
-				   "<transport_descriptors>"
-				   "<transport_descriptor>"
-				   "<transport_id>udp_localhost</transport_id>"
-				   "<type>UDPv4</type>"
-				   "<interfaceWhiteList><address>127.0.0.1</address></interfaceWhiteList>"
-				   "</transport_descriptor>"
-				   "</transport_descriptors>"
-				   "</profiles>"
+				   "%s" // transport_descriptors
 				   "<participant>"
 				   "<rtps>"
-				   :
-				   "<dds>"
-				   "<participant>"
-				   "<rtps>",
-				   _client_namespace != nullptr ?
-				   _client_namespace
-				   :
-				   "",
-				   _localhost_only ?
-				   "<useBuiltinTransports>false</useBuiltinTransports>"
-				   "<userTransports><transport_id>udp_localhost</transport_id></userTransports>"
+				   "<name>"
+				   "%s/px4_micro_xrce_dds" // client_namespace_
+				   "</name>"
+				   "%s" // discovery protocol
+				   "%s" // user transport profile
 				   "</rtps>"
 				   "</participant>"
+				   "</profiles>"
 				   "</dds>"
-				   :
-				   "</rtps>"
-				   "</participant>"
-				   "</dds>"
+				   ,
+				   _localhost_only ? transport_descriptors_xml : "",
+		 		   _client_namespace != nullptr ? _client_namespace : "",
+				   _use_discovery ? discovery_xml: "", 
+				   _localhost_only ? user_transports_xml : ""
 				  );
 
 		if (ret < 0 || ret >= PARTICIPANT_XML_SIZE) {
@@ -584,6 +676,11 @@ MicroddsClient *MicroddsClient::instantiate(int argc, char *argv[])
 
 	char port[PORT_MAX_LENGTH] = {0};
 	char agent_ip[AGENT_IP_MAX_LENGTH] = {0};
+	
+	// discovery server settings
+	bool use_discovery = false;
+	char discovery_server_ip[AGENT_IP_MAX_LENGTH] = {0};
+	char discovery_server_port[PORT_MAX_LENGTH] = {0};
 
 #if defined(MICRODDS_CLIENT_UDP)
 	Transport transport = Transport::Udp;
@@ -685,6 +782,58 @@ MicroddsClient *MicroddsClient::instantiate(int argc, char *argv[])
 	}
 
 #endif // MICRODDS_CLIENT_UDP
+	
+
+	// params for the discovery server
+	int32_t use_discovery_i = 0;
+	param_get(param_find("XRCE_DISC_USE"), &use_discovery_i);
+	if (use_discovery_i == 1) {
+		use_discovery = true;
+	} else {
+		use_discovery = false;
+	}
+
+
+	if (use_discovery) {
+
+	if (discovery_server_ip[0] == '\0') {
+		// no discovery_server_ip specified, use XRCE_DDS_DISC_IP
+		int32_t server_ip_i[4] = {0};
+
+		for (uint8_t i=0; i<4; i++){
+			char param_name[17] = {0};
+			snprintf(param_name, 17, "XRCE_DISC_IP%u", i);
+			param_get(param_find(param_name), &server_ip_i[i]);
+			if (server_ip_i[i] < 0 || server_ip_i[i] > 255) {
+				PX4_ERR("discovery server ip address octects must each be between 0 and 255");
+				return nullptr;
+			}
+		}
+		snprintf(discovery_server_ip, AGENT_IP_MAX_LENGTH, "%u.%u.%u.%u", 
+			static_cast<uint8_t>(server_ip_i[0]),
+			static_cast<uint8_t>(server_ip_i[1]),
+			static_cast<uint8_t>(server_ip_i[2]),
+			static_cast<uint8_t>(server_ip_i[3]));
+		}
+
+	PX4_WARN("USING DISCOVERY SERVER AT IP: %s", discovery_server_ip);
+	
+	
+	if (discovery_server_port[0] == '\0') {
+		// no port specified, use XRCE_DDS_DISC_PRT
+		int32_t discovery_port_i = 0;
+		param_get(param_find("XRCE_DISC_PRT"), &discovery_port_i);
+		if (discovery_port_i < 0 || discovery_port_i > 65535) {
+			PX4_ERR("discovery port must be between 0 and 65535");
+			return nullptr;
+		}
+
+		snprintf(discovery_server_port, PORT_MAX_LENGTH, "%u", (uint16_t)discovery_port_i);
+	PX4_WARN("USING DISCOVERY SERVER AT PORT: %s", discovery_server_port);
+	}
+	}
+
+
 
 	if (error_flag) {
 		return nullptr;
@@ -708,7 +857,7 @@ MicroddsClient *MicroddsClient::instantiate(int argc, char *argv[])
 
 
 	return new MicroddsClient(transport, device, baudrate, agent_ip, port, localhost_only, custom_participant,
-				  client_namespace);
+				  client_namespace, use_discovery, discovery_server_ip, discovery_server_port);
 }
 
 int MicroddsClient::print_usage(const char *reason)
