@@ -53,7 +53,7 @@ fi
 
 # To use gazebo_ros ROS2 plugins
 if [[ -n "$ROS_VERSION" ]] && [ "$ROS_VERSION" == "2" ]; then
-	ros_args="-s libgazebo_ros_init.so -s libgazebo_ros_factory.so"
+	ros_args="-s libgazebo_ros_init.so -s libgazebo_ros_factory.so --ros-args --params-file $src_path/gazebo_params.yaml"
 else
 	ros_args=""
 fi
