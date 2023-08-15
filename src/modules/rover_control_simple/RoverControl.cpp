@@ -9,12 +9,30 @@ using namespace matrix;
  */
 extern "C" __EXPORT int rover_pos_control_main(int argc, char *argv[]);
 
-RoverPositionControl::RoverPositionControl() :
-	ModuleParams(nullptr),
-	WorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers),
-	/* performance counters */
-	_loop_perf(perf_alloc(PC_ELAPSED,  MODULE_NAME": cycle")) // TODO : do we even need these perf counters
-{
+
+
+// ===================== Old code ===========================
+// README: In the new version I removed the performace counter and added the paramters_update; Following Dev's structure
+
+// RoverPositionControl::RoverPositionControl() :
+// 	ModuleParams(nullptr),
+// 	WorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers)
+
+
+// 	/* performance counters */
+// 	// Removing this for now
+// 	_loop_perf(perf_alloc(PC_ELAPSED,  MODULE_NAME": cycle")) // TODO : do we even need these perf counters
+// {
+// }
+// ==========================================================
+
+
+RoverPositionControl::RoverPositionControl()
+    : ModuleParams(nullptr),
+      WorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers) {
+
+  // initializer
+  parameters_update();
 }
 
 RoverPositionControl::~RoverPositionControl()
@@ -30,10 +48,13 @@ RoverPositionControl::init()
 		return false;
 	}
 
+	_timestamp_last_loop = hrt_absolute_time();
+	ScheduleNow();
+
 	return true;
 }
 
-void RoverPositionControl::parameters_update(bool force)
+void RoverPositionControl::parameters_update()
 {
 	// check for parameter updates
 	if (_parameter_update_sub.updated() || force) {
@@ -42,11 +63,13 @@ void RoverPositionControl::parameters_update(bool force)
 		_parameter_update_sub.copy(&pupdate);
 
 		// update parameters from storage
-		updateParams();
+		ModuleParams::updateParams();
+		PX4_WARN("updateParams"); // Add warning that params are updated
 
 		_gnd_control.set_l1_damping(_param_l1_damping.get());
 		_gnd_control.set_l1_period(_param_l1_period.get());
 
+		// PID Controler Inits
 		pid_init(&_speed_ctrl, PID_MODE_DERIVATIV_CALC, 0.01f);
 		pid_set_parameters(&_speed_ctrl,
 				   _param_speed_p.get(),
@@ -54,6 +77,10 @@ void RoverPositionControl::parameters_update(bool force)
 				   _param_speed_d.get(),
 				   _param_speed_imax.get(),
 				   _param_gndspeed_max.get());
+		// TOD0: Add mixer
+		// We have the thrust and torque and needs to be converted to the PWM
+
+		// What is _land_speed ?
 	}
 }
 
@@ -270,87 +297,280 @@ RoverPositionControl::control_attitude(const vehicle_attitude_s &att, const vehi
 void
 RoverPositionControl::Run()
 {
-	parameters_update(true);
+	// *** Where is should_exit() defined ?
+	if (should_exit()) {
+	_ang_vel_sub.unregisterCallback();
+	exit_and_cleanup();
+	return;
+	}
+
+
+	perf_begin(_cycle_perf);
+
+	if (!_ang_vel_sub.updated()) {
+	perf_end(_cycle_perf);
+	return;
+	}
+
+	parameters_update();
 
 	/* run controller on gyro changes */
 	vehicle_angular_velocity_s angular_velocity;
 
-	if (_vehicle_angular_velocity_sub.update(&angular_velocity)) {
 
-		// PX4_WARN("Inside rover!!");
-		/* check vehicle control mode for changes to publication state */
-		vehicle_control_mode_poll();
-		attitude_setpoint_poll();
-		vehicle_attitude_poll();
-		manual_control_setpoint_poll();
+	// grab commander status
+	if (_commander_status_sub.update(&_commander_status)) {
+	_init_commander_status = true;
 
-		_vehicle_acceleration_sub.update();
-
-		/* update parameters from storage */
-		parameters_update();
-
-		/* only run controller if position changed */
-		if (_local_pos_sub.update(&_local_pos)) {
-
-			// position global but velocity local?? ///////////////////////////////////////////////////////////////
-			matrix::Vector3f ground_speed(_local_pos.vx, _local_pos.vy,  _local_pos.vz);
-			// matrix::Vector2d current_position(_global_pos.lat, _global_pos.lon);
-			matrix::Vector2f current_position(_local_pos.x, _local_pos.y);
-			matrix::Vector3f current_velocity(_local_pos.vx, _local_pos.vy, _local_pos.vz);
-			matrix::Vector3f current_angular_velocity(angular_velocity.xyz[0], angular_velocity.xyz[1], angular_velocity.xyz[2]);
-
-			//Position Control Mode
-			if (!_control_mode.flag_control_manual_enabled && _control_mode.flag_control_position_enabled) {
-				_trajectory_setpoint_sub.update(&_trajectory_setpoint);
-				// PX4_WARN("%f %f %f",(double)_trajectory_setpoint.x, (double)_trajectory_setpoint.y, (double)_trajectory_setpoint.z);
-				control_local_position(current_position, current_velocity, current_angular_velocity);
-				// PX4_WARN("")
-
-			// Velocity Control Mode
-			} else if (!_control_mode.flag_control_manual_enabled && _control_mode.flag_control_velocity_enabled) {
-				_trajectory_setpoint_sub.update(&_trajectory_setpoint);
-				// control_velocity(current_velocity, current_angular_velocity);
-				Vector3f desired_velocity{_trajectory_setpoint.vx, _trajectory_setpoint.vy, _trajectory_setpoint.vz};
-				float desired_linear_x_velocity = desired_velocity(0);
-				float desired_angular_z_velocity = _trajectory_setpoint.yawspeed;
-				control_velocity(current_velocity, current_angular_velocity, desired_linear_x_velocity, desired_angular_z_velocity);
-			}
-		}
-
-		// Respond to an attitude update and run the attitude controller if enabled
-		if (_control_mode.flag_control_attitude_enabled
-		    && !_control_mode.flag_control_position_enabled
-		    && !_control_mode.flag_control_velocity_enabled) {
-			control_attitude(_vehicle_att, _att_sp);
-			// PX4_WARN("Attitude Mode");
-		}
-
-		/* Only publish if any of the proper modes are enabled */
-		if (_control_mode.flag_control_velocity_enabled ||
-		    _control_mode.flag_control_attitude_enabled ||
-		    _control_mode.flag_control_position_enabled ||
-		    _control_mode.flag_control_manual_enabled) {
-			// timestamp and publish controls
-			_act_controls.timestamp = hrt_absolute_time();
-			_actuator_controls_pub.publish(_act_controls);
-
-			vehicle_thrust_setpoint_s v_thrust_sp{};
-			v_thrust_sp.timestamp = hrt_absolute_time();
-			v_thrust_sp.xyz[0] = _act_controls.control[actuator_controls_s::INDEX_THROTTLE];
-			v_thrust_sp.xyz[1] = 0.0f;
-			v_thrust_sp.xyz[2] = 0.0f;
-			_vehicle_thrust_setpoint_pub.publish(v_thrust_sp);
-
-			vehicle_torque_setpoint_s v_torque_sp{};
-			v_torque_sp.timestamp = hrt_absolute_time();
-			v_torque_sp.xyz[0] = _act_controls.control[actuator_controls_s::INDEX_ROLL];
-			v_torque_sp.xyz[1] = _act_controls.control[actuator_controls_s::INDEX_PITCH];
-			v_torque_sp.xyz[2] = _act_controls.control[actuator_controls_s::INDEX_YAW];
-			_vehicle_torque_setpoint_pub.publish(v_torque_sp);
-			// PX4_WARN("PUBLISHING.... %f %f",(double)v_thrust_sp.xyz[0], (double)v_torque_sp.xyz[2]);
-		}
+	_armed = _commander_status.state != commander_status_s::STATE_DISARMED;
 	}
+
+
+	if (!_armed) {
+	float v = 0;
+	Vector4f cmd(v, v, v, v); // TODO: Need to change this
+	publish_cmd(cmd);
+	perf_end(_cycle_perf);
+	return;
+	}
+
+	// update other subscribers
+	if (_ang_vel_sub.update(&_state_ang_vel)) {
+
+	// TODO: Add controller for rover with function update_state_Omega(_state_ang_vel)
+	// _controller.update_state_Omega(_state_ang_vel);
+
+	_init_state_Omega = true;
+	}
+
+	if (_local_pos_sub.update(&_state_pos)) {
+
+	// TODO: Add controller for rover with function update_state_pos
+	// _controller.update_state_pos(_state_pos); [OLD]
+
+	// if the mode is not landing, update the landing state
+	if (_init_commander_status &&
+		_commander_status.state != commander_status_s::STATE_LAND) {
+	_local_pos_sub.copy(&_start_landing_state);
+	_last_timestamp_land_started = hrt_absolute_time();
+	}
+	_init_state_pos = true;
+	}
+
+	if (_trajectory_setpoint_sub.update(&_setpoint)) {
+	// TODO: Add controller for rover with function update_setpoint(_setpoint)
+	// _controller.update_setpoint(_setpoint); [OLD]
+	_init_setpoint = true;
+	}
+
+
+	if (_att_sub.update(&_state_att)) {
+	// TODO: Add controller for rover with function update_state_attitude(_state_att)
+	// _controller.update_state_attitude(_state_att); [OLD]
+	_init_state_att = true;
+	}
+
+	_initialized = _init_state_Omega && _init_state_pos && _init_state_att &&
+			_init_setpoint && _init_commander_status;
+
+	if (!_initialized) {
+	float v = 0.05;
+	Vector4f cmd(v, v, v, v); // TODO: Need to change this
+	publish_cmd(cmd);
+	PX4_WARN("ARMED but not INITIALIZED");
+	perf_end(_cycle_perf);
+	return;
+	}
+
+	// if in armed mode, publish the min PWM
+	if (_commander_status.state == commander_status_s::STATE_ARMED) {
+	float v = 0.05;
+	Vector4f cmd(v, v, v, v);
+	publish_cmd(cmd);
+	perf_end(_cycle_perf);
+	return;
+	}
+
+
+
+	// ================ TDOD: First define the setpoint and set to the prev so that robot stays at its current pos ? =====
+	// if in land mode, modify the setpoint
+	if (_commander_status.state == commander_status_s::STATE_LAND) {
+
+	// initialize setpoint to 0
+	for (size_t i = 0; i < 3; i++) {
+	_setpoint.velocity[i] = 0;
+	_setpoint.acceleration[i] = 0;
+	_setpoint.jerk[i] = 0;
+	}
+	_setpoint.yawspeed = 0;
+
+	float t =
+		(float)(1e-6) * (float)hrt_elapsed_time(&_last_timestamp_land_started);
+
+	_setpoint.position[0] = _start_landing_state.x;
+	_setpoint.position[1] = _start_landing_state.y;
+	_setpoint.position[2] = _start_landing_state.z + _land_speed * t;
+	_setpoint.yaw = _start_landing_state.heading;
+	_setpoint.velocity[2] = _land_speed;
+	_controller.update_setpoint(_setpoint);
+	}
+	// =======================================================================================================
+
+	// if the code is here, it is in OFFBOARD MODE and with the correct setpoint
+
+	if (_setpoint.raw_mode == false) {
+	// run controller
+	_controller.run();
+
+	// get thrust and torque command
+	float thrust_cmd = _controller.get_thrust_cmd();
+	thrust_cmd = (thrust_cmd < 0) ? 0 : thrust_cmd;
+	Vector3f torque_cmd = _controller.get_torque_cmd().zero_if_nan();
+
+	// do the mixing
+	Vector4f cmd = _mixer.mix(thrust_cmd, torque_cmd);
+
+	// publish
+	publish_cmd(cmd);
+
+	} else {
+	// *** What is the RAW MOTOR Mode
+	PX4_WARN("IN RAW MOTOR MODE");
+
+	// copy from the _setpoint msg
+	Vector4f motor_cmd(_setpoint.cmd[0], _setpoint.cmd[1], _setpoint.cmd[2],
+			_setpoint.cmd[3]);
+
+	// publish
+	publish_cmd(motor_cmd);
+	}
+
+	perf_end(_cycle_perf);
+
+	return;
+
+
+
+	// ======================================= [OLD Code] =================================
+	// if (_vehicle_angular_velocity_sub.update(&angular_velocity)) {
+
+	// 	// PX4_WARN("Inside rover!!");
+	// 	/* check vehicle control mode for changes to publication state */
+	// 	vehicle_control_mode_poll();
+	// 	attitude_setpoint_poll();
+	// 	vehicle_attitude_poll();
+	// 	manual_control_setpoint_poll();
+
+	// 	_vehicle_acceleration_sub.update();
+
+	// 	/* update parameters from storage */
+	// 	parameters_update();
+
+	// 	/* only run controller if position changed */
+	// 	if (_local_pos_sub.update(&_local_pos)) {
+
+	// 		// position global but velocity local?? ///////////////////////////////////////////////////////////////
+	// 		matrix::Vector3f ground_speed(_local_pos.vx, _local_pos.vy,  _local_pos.vz);
+	// 		// matrix::Vector2d current_position(_global_pos.lat, _global_pos.lon);
+	// 		matrix::Vector2f current_position(_local_pos.x, _local_pos.y);
+	// 		matrix::Vector3f current_velocity(_local_pos.vx, _local_pos.vy, _local_pos.vz);
+	// 		matrix::Vector3f current_angular_velocity(angular_velocity.xyz[0], angular_velocity.xyz[1], angular_velocity.xyz[2]);
+
+	// 		//Position Control Mode
+	// 		if (!_control_mode.flag_control_manual_enabled && _control_mode.flag_control_position_enabled) {
+	// 			_trajectory_setpoint_sub.update(&_trajectory_setpoint);
+	// 			// PX4_WARN("%f %f %f",(double)_trajectory_setpoint.x, (double)_trajectory_setpoint.y, (double)_trajectory_setpoint.z);
+	// 			control_local_position(current_position, current_velocity, current_angular_velocity);
+	// 			// PX4_WARN("")
+
+	// 		// Velocity Control Mode
+	// 		} else if (!_control_mode.flag_control_manual_enabled && _control_mode.flag_control_velocity_enabled) {
+	// 			_trajectory_setpoint_sub.update(&_trajectory_setpoint);
+	// 			// control_velocity(current_velocity, current_angular_velocity);
+	// 			Vector3f desired_velocity{_trajectory_setpoint.vx, _trajectory_setpoint.vy, _trajectory_setpoint.vz};
+	// 			float desired_linear_x_velocity = desired_velocity(0);
+	// 			float desired_angular_z_velocity = _trajectory_setpoint.yawspeed;
+	// 			control_velocity(current_velocity, current_angular_velocity, desired_linear_x_velocity, desired_angular_z_velocity);
+	// 		}
+	// 	}
+
+	// 	// Respond to an attitude update and run the attitude controller if enabled
+	// 	if (_control_mode.flag_control_attitude_enabled
+	// 	    && !_control_mode.flag_control_position_enabled
+	// 	    && !_control_mode.flag_control_velocity_enabled) {
+	// 		control_attitude(_vehicle_att, _att_sp);
+	// 		// PX4_WARN("Attitude Mode");
+	// 	}
+
+	// 	/* Only publish if any of the proper modes are enabled */
+	// 	if (_control_mode.flag_control_velocity_enabled ||
+	// 	    _control_mode.flag_control_attitude_enabled ||
+	// 	    _control_mode.flag_control_position_enabled ||
+	// 	    _control_mode.flag_control_manual_enabled) {
+	// 		// timestamp and publish controls
+	// 		_act_controls.timestamp = hrt_absolute_time();
+	// 		_actuator_controls_pub.publish(_act_controls);
+
+	// 		vehicle_thrust_setpoint_s v_thrust_sp{};
+	// 		v_thrust_sp.timestamp = hrt_absolute_time();
+	// 		v_thrust_sp.xyz[0] = _act_controls.control[actuator_controls_s::INDEX_THROTTLE];
+	// 		v_thrust_sp.xyz[1] = 0.0f;
+	// 		v_thrust_sp.xyz[2] = 0.0f;
+	// 		_vehicle_thrust_setpoint_pub.publish(v_thrust_sp);
+
+	// 		vehicle_torque_setpoint_s v_torque_sp{};
+	// 		v_torque_sp.timestamp = hrt_absolute_time();
+	// 		v_torque_sp.xyz[0] = _act_controls.control[actuator_controls_s::INDEX_ROLL];
+	// 		v_torque_sp.xyz[1] = _act_controls.control[actuator_controls_s::INDEX_PITCH];
+	// 		v_torque_sp.xyz[2] = _act_controls.control[actuator_controls_s::INDEX_YAW];
+	// 		_vehicle_torque_setpoint_pub.publish(v_torque_sp);
+	// 		// PX4_WARN("PUBLISHING.... %f %f",(double)v_thrust_sp.xyz[0], (double)v_torque_sp.xyz[2]);
+	// 	}
+	// }
+	// =========================================================================================================================
 }
+
+
+Vector2f RoverPositionControl::maix(float linear_velocity, float angular_velocity){
+
+
+	// convert linear and angular velocities to left and right wheel speed
+	Vector2f cmd;
+
+	float right_wheel = linear_velocity + (GND_WHEEL_BASE / 2 ) * angular_velocity;
+	float left_wheel = linear_velocity - (GND_WHEEL_BASE / 2 ) * angular_velocity;
+	cmd(1) = right_wheel;
+	cmd(2) = left_wheel;
+
+
+	return cmd;
+	}
+
+
+// TODO: Change the size of the
+void RoverPositionControl::publish_cmd(Vector4f cmd) {
+  {
+    // publish for sitl
+    actuator_outputs_s msg;
+    msg.timestamp = hrt_absolute_time();
+    for (size_t i = 0; i < 4; i++) {
+      msg.output[i] = cmd(i);
+    }
+    _actuator_outputs_sim_pub.publish(msg);
+  }
+  {
+    // publish for hardware
+    actuator_motors_s msg;
+    msg.timestamp = hrt_absolute_time();
+    msg.reversible_flags = 0; // no motors are reversible
+    for (size_t i = 0; i < 4; i++) {
+      msg.control[i] = cmd(i);
+    }
+    _actuator_motors_pub.publish(msg);
+  }
+}
+
 
 int RoverPositionControl::task_spawn(int argc, char *argv[])
 {
@@ -424,3 +644,14 @@ int rover_pos_control_main(int argc, char *argv[])
 extern "C" __EXPORT int rover_control_main(int argc, char *argv[]) {
   return RoverControl::main(argc, argv);
 }
+
+/* TODO: Controller methods to implement
+_controller.update_state_pos(_state_pos)
+_controller.update_state_Omega(_state_ang_vel)
+_controller.update_setpoint(_setpoint);
+_controller.update_state_attitude(_state_att);
+_controller.run();
+_controller.get_thrust_cmd()
+_controller.get_torque_cmd()
+
+*/
