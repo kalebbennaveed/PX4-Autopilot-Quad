@@ -78,13 +78,18 @@ public:
 	/** @see ModuleBase */
 	static int print_usage(const char *reason = nullptr);
 
+	void handle_motor_test(int ind);
+	void handle_motor_test_stop();
 
-
+	// Controller and mix functions
+	void set_wheel_base(float b)
+	Vector2f mix(float linear_velocity, float angular_velocity) // So mixer receives the linear vel and angular vel and then returns the right and left wheel speed
 private:
 	bool init();
-	void parameters_update(bool force = false);
+	void parameters_update();
 	void Run() override;
 	void publish_cmd(Vector4f pwm_cmd);
+
 
 	// Publications
 	uORB::Publication<actuator_motors_s> _actuator_motors_pub{ORB_ID(actuator_motors)};
@@ -130,12 +135,13 @@ private:
 	bool _init_state_acc = false;
 	bool _init_setpoint = false;
 	bool _init_commander_status = false;
+	float _rover_wheel_base;
 
 	// perf_counter_t	_loop_perf;			/**< loop performance counter */
 	hrt_abstime _timestamp_last_loop{0};
 	hrt_abstime _last_timestamp_land_started{0};
 	perf_counter_t _cycle_perf{
-	perf_alloc(PC_ELAPSED, MODULE_NAME ": cycle time")};
+		perf_alloc(PC_ELAPSED, MODULE_NAME ": cycle time")};
 
 
 	// Controller functions
