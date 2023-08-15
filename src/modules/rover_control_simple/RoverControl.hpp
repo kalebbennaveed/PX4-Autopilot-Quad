@@ -133,59 +133,44 @@ private:
                                                    1_s};
 
 	// Private Variables
+	vehicle_status_s _vehicle_status;
+	vehicle_local_position_s _state_pos;
+	vehicle_local_position_s _start_landing_state;
+	vehicle_attitude_s _state_att;
+	vehicle_acceleration_s _state_acc;
+	vehicle_angular_velocity_s _state_ang_vel;
+	trajectory_setpoint_s _setpoint;
+	commander_status_s _commander_status;
+
+	// from old code
 	manual_control_setpoint_s		_manual_control_setpoint{};			    /**< r/c channel data */
-	position_setpoint_triplet_s		_pos_sp_triplet{};		/**< triplet of mission items */
-	vehicle_attitude_setpoint_s		_att_sp{};			/**< attitude setpoint > */
-	vehicle_control_mode_s			_control_mode{};		/**< control mode */
-	vehicle_global_position_s		_global_pos{};			/**< global vehicle position */
-	vehicle_local_position_s		_local_pos{};			/**< global vehicle position */
-	vehicle_attitude_s				_vehicle_att{};
-	trajectory_setpoint_s _trajectory_setpoint{};
-	uORB::Publication<vehicle_thrust_setpoint_s>	_vehicle_thrust_setpoint_pub{ORB_ID(vehicle_thrust_setpoint)};
-	uORB::Publication<vehicle_torque_setpoint_s>	_vehicle_torque_setpoint_pub{ORB_ID(vehicle_torque_setpoint)};
 
-	uORB::SubscriptionData<vehicle_acceleration_s>		_vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
-
-	perf_counter_t	_loop_perf;			/**< loop performance counter */
-
-	hrt_abstime _control_position_last_called{0}; 	/**<last call of control_position  */
-	hrt_abstime _manual_setpoint_last_called{0};
-
-	MapProjection _global_local_proj_ref{};
-
-	/* Pid controller for the speed. Here we assume we can control airspeed but the control variable is actually on
-	 the throttle. For now just assuming a proportional scaler between controlled airspeed and throttle output.*/
-	PID_t _speed_ctrl{};
-	PID_t _angular_speed_ctrl{};
-
-	// estimator reset counters
-	uint8_t _pos_reset_counter{0};		// captures the number of times the estimator has reset the horizontal position
-
-	ECL_L1_Pos_Controller				_gnd_control;
-
-	enum UGV_POSCTRL_MODE {
-		UGV_POSCTRL_MODE_AUTO,
-		UGV_POSCTRL_MODE_OTHER
-	} _control_mode_current{UGV_POSCTRL_MODE_OTHER};			///< used to check the mode in the last control loop iteration. Use to check if the last iteration was in the same mode.
+	// from Dev
+	//MixerQuadratic _mixer;. // TODO: make mixer file for rover
 
 
-	enum POS_CTRLSTATES {
-		GOTO_WAYPOINT,
-		STOPPING
-	} _pos_ctrl_state {STOPPING};			/// Position control state machine
+	float _land_speed = 0.2f;
 
-	/* previous waypoint */
-	matrix::Vector2d _prev_wp{0, 0};
+	bool _armed = false;
+	bool _initialized = false;
+	bool _init_state_Omega = false;
+	bool _init_state_pos = false;
+	bool _init_state_att = false;
+	bool _init_state_acc = false;
+	bool _init_setpoint = false;
+	bool _init_commander_status = false;
 
-	enum class VelocityFrame {
-		NED,
-		BODY,
-	} _velocity_frame{VelocityFrame::NED};
+	// perf_counter_t	_loop_perf;			/**< loop performance counter */
+	hrt_abstime _timestamp_last_loop{0};
+	hrt_abstime _last_timestamp_land_started{0};
+	perf_counter_t _cycle_perf{
+	perf_alloc(PC_ELAPSED, MODULE_NAME ": cycle time")};
 
-	float _manual_yaw_sp{0.0};
-	bool _reset_yaw_sp{true};
-	// float _throttle_control{0.f};
-	// float _yaw_control{0.f};
+
+	// Controller functions
+	void 		control_local_position(const matrix::Vector2f &current_position, const matrix::Vector3f &current_velocity, const matrix::Vector3f &current_angular_velocity);
+	void		control_velocity(const matrix::Vector3f &current_velocity, const matrix::Vector3f &current_angular_velocity, const float desired_linear_x_velocity, const float desired_angular_z_velocity);
+	void		control_attitude(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp);
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::GND_L1_PERIOD>) _param_l1_period,
@@ -212,18 +197,54 @@ private:
 		(ParamFloat<px4::params::NAV_LOITER_RAD>) _param_nav_loiter_rad	/**< loiter radius for Rover */
 	)
 
+	// hrt_abstime _control_position_last_called{0}; 	/**<last call of control_position  */
+	// hrt_abstime _manual_setpoint_last_called{0};
+
+	// MapProjection _global_local_proj_ref{};
+
+	// /* Pid controller for the speed. Here we assume we can control airspeed but the control variable is actually on
+	//  the throttle. For now just assuming a proportional scaler between controlled airspeed and throttle output.*/
+	// PID_t _speed_ctrl{};
+	// PID_t _angular_speed_ctrl{};
+
+	// // estimator reset counters
+	// uint8_t _pos_reset_counter{0};		// captures the number of times the estimator has reset the horizontal position
+
+	// ECL_L1_Pos_Controller				_gnd_control;
+
+	// enum UGV_POSCTRL_MODE {
+	// 	UGV_POSCTRL_MODE_AUTO,
+	// 	UGV_POSCTRL_MODE_OTHER
+	// } _control_mode_current{UGV_POSCTRL_MODE_OTHER};			///< used to check the mode in the last control loop iteration. Use to check if the last iteration was in the same mode.
 
 
-	void		position_setpoint_triplet_poll();
-	void		attitude_setpoint_poll();
-	void		vehicle_control_mode_poll();
-	void 		vehicle_attitude_poll();
-	void		manual_control_setpoint_poll();
+	// enum POS_CTRLSTATES {
+	// 	GOTO_WAYPOINT,
+	// 	STOPPING
+	// } _pos_ctrl_state {STOPPING};			/// Position control state machine
 
-	/**
-	 * Control position.
-	 */
-	void 		control_local_position(const matrix::Vector2f &current_position, const matrix::Vector3f &current_velocity, const matrix::Vector3f &current_angular_velocity);
-	void		control_velocity(const matrix::Vector3f &current_velocity, const matrix::Vector3f &current_angular_velocity, const float desired_linear_x_velocity, const float desired_angular_z_velocity);
-	void		control_attitude(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp);
+	// /* previous waypoint */
+	// matrix::Vector2d _prev_wp{0, 0};
+
+	// enum class VelocityFrame {
+	// 	NED,
+	// 	BODY,
+	// } _velocity_frame{VelocityFrame::NED};
+
+	// float _manual_yaw_sp{0.0};
+	// bool _reset_yaw_sp{true};
+	// // float _throttle_control{0.f};
+	// // float _yaw_control{0.f};
+
+
+
+
+
+	// void		position_setpoint_triplet_poll();
+	// void		attitude_setpoint_poll();
+	// void		vehicle_control_mode_poll();
+	// void 		vehicle_attitude_poll();
+	// void		manual_control_setpoint_poll();
+
+
 };
