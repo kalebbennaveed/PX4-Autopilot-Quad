@@ -82,8 +82,11 @@ public:
 	void handle_motor_test_stop();
 
 	// Controller and mix functions
-	void set_wheel_base(float b)
-	Vector2f mix(float linear_velocity, float angular_velocity) // So mixer receives the linear vel and angular vel and then returns the right and left wheel speed
+	void set_wheel_base(float b);
+	Vector2f mix(float linear_velocity, float angular_velocity);// So mixer receives the linear vel and angular vel and then returns the right and left wheel speed
+	void update_state_pos(vehicle_local_position_s pos);
+	void update_yaw(vehicle_attitude_s att)
+	Vector2f Rover_Controller();
 private:
 	bool init();
 	void parameters_update();
@@ -121,8 +124,17 @@ private:
 	// from old code
 	manual_control_setpoint_s		_manual_control_setpoint{};			    /**< r/c channel data */
 
-	// from Dev
-	//MixerQuadratic _mixer;. // TODO: make mixer file for rover
+	// Rover state
+	Vector3f rover_pos;
+	float rover_yaw;
+
+	// SETPOINT
+	Vector3f pos_ref;
+	float yaw_ref, angular_vel_ref, linear_vel_ref;
+
+	// Rover Controller gains
+	float k1, k2, k3;
+
 
 
 	float _land_speed = 0.2f;
