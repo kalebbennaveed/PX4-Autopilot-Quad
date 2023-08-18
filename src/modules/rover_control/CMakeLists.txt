@@ -31,11 +31,11 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE modules__rover_control_simple
-	MAIN rover_pos_control
+	MODULE modules__rover_control
+	MAIN rover_control
 	SRCS
-		RoverPositionControl.cpp
-		RoverPositionControl.hpp
+		RoverControl.cpp
+		RoverControl.hpp
 	DEPENDS
 		l1
 		pid

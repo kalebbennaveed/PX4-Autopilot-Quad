@@ -7,7 +7,8 @@ services:
     tty: true
     network_mode: "host"
     volumes:
-      - /home/dasc/hardik/PX4-Autopilot-Quad:/home/px4
+      #- /home/dasc/hardik/PX4-Autopilot-Quad:/home/px4
+      - /home/hardik/Desktop/Research/PX4-Autopilot-Quad:/home/px4
     environment:
             #- NVIDIA_DISABLE_REQUIRE=1
       - DISPLAY=$DISPLAY
