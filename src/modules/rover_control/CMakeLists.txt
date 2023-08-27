@@ -37,6 +37,4 @@ px4_add_module(
 		RoverControl.cpp
 		RoverControl.hpp
 	DEPENDS
-		l1
-		pid
 	)

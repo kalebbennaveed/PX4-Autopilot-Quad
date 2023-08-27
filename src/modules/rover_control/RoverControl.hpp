@@ -1,17 +1,3 @@
-/****************************************************************************
-
- ****************************************************************************/
-
-/**
- *
- * This module is a modification of the fixed wing module and it is designed for ground rovers.
- * It has been developed starting from the fw module, simplified and improved with dedicated items.
- *
- * All the ackowledgments and credits for the fw wing app are reported in those files.
- *
- * @author Marco Zorzi <mzorzi@student.ethz.ch>
- */
-///////////
 #include <float.h>
 #include <lib/matrix/matrix/math.hpp>
 #include <lib/perf/perf_counter.h>
@@ -60,14 +46,14 @@ using namespace matrix;
 
 using namespace time_literals;
 
-class RoverPositionControl final : public ModuleBase<RoverControl>,
+class RoverControl final : public ModuleBase<RoverControl>,
 				   public ModuleParams,
 				   public px4::WorkItem {
 public:
-	RoverPositionControl();
-	~RoverPositionControl();
-	RoverPositionControl(const RoverPositionControl &) = delete;
-	RoverPositionControl operator=(const RoverPositionControl &other) = delete;
+	RoverControl();
+	~RoverControl();
+	RoverControl(const RoverControl &) = delete;
+	RoverControl operator=(const RoverControl &other) = delete;
 
 	/** @see ModuleBase */
 	static int task_spawn(int argc, char *argv[]);
@@ -78,20 +64,24 @@ public:
 	/** @see ModuleBase */
 	static int print_usage(const char *reason = nullptr);
 
-	void handle_motor_test(int ind);
-	void handle_motor_test_stop();
+	// void handle_motor_test(int ind);
+	// void handle_motor_test_stop();
 
 	// Controller and mix functions
 	void set_wheel_base(float b);
+	void set_controller_gains(float position_gain, float velocity_gain, float angle_gain, float max_wheel_speed);
 	Vector2f mix(float linear_velocity, float angular_velocity);// So mixer receives the linear vel and angular vel and then returns the right and left wheel speed
 	void update_state_pos(vehicle_local_position_s pos);
-	void update_yaw(vehicle_attitude_s att)
+	void update_yaw(vehicle_attitude_s att);
+	void update_setpoint(trajectory_setpoint_s sp);
+	float wrap_angle(float angle);
 	Vector2f Rover_Controller();
+
 private:
 	bool init();
 	void parameters_update();
 	void Run() override;
-	void publish_cmd(Vector4f pwm_cmd);
+	void publish_cmd(Vector2f pwm_cmd);
 
 
 	// Publications
@@ -108,8 +98,7 @@ private:
 	uORB::Subscription _acc_sub{ORB_ID(vehicle_acceleration)};
 	uORB::SubscriptionCallbackWorkItem _ang_vel_sub{
 	this, ORB_ID(vehicle_angular_velocity)};
-	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update),
-                                                   1_s};
+	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	// Private Variables
 	vehicle_status_s _vehicle_status;
@@ -122,118 +111,53 @@ private:
 	commander_status_s _commander_status;
 
 	// from old code
-	manual_control_setpoint_s		_manual_control_setpoint{};			    /**< r/c channel data */
+	// manual_control_setpoint_s		_manual_control_setpoint{};			    /**< r/c channel data */
 
 	// Rover state
 	Vector3f rover_pos;
+	Vector3f rover_vel;
 	float rover_yaw;
+	Vector3f rover_omega;
 
 	// SETPOINT
 	Vector3f pos_ref;
 	float yaw_ref, angular_vel_ref, linear_vel_ref;
 
 	// Rover Controller gains
-	float k1, k2, k3;
-
-
+	float kx, kv, komega;
+	float _rover_wheel_base;
+	float _rover_speed_max;
+	float _rover_throttle_min;
+	float _rover_throttle_max;
+	float _rover_ff_pwm;
+	float _rover_wheel_max_speed;
 
 	float _land_speed = 0.2f;
 
 	bool _armed = false;
 	bool _initialized = false;
-	bool _init_state_Omega = false;
+	bool _init_state_omega = false;
 	bool _init_state_pos = false;
 	bool _init_state_att = false;
 	bool _init_state_acc = false;
 	bool _init_setpoint = false;
 	bool _init_commander_status = false;
-	float _rover_wheel_base;
 
-	// perf_counter_t	_loop_perf;			/**< loop performance counter */
+	perf_counter_t	_loop_perf;			/**< loop performance counter */
 	hrt_abstime _timestamp_last_loop{0};
 	hrt_abstime _last_timestamp_land_started{0};
 	perf_counter_t _cycle_perf{
 		perf_alloc(PC_ELAPSED, MODULE_NAME ": cycle time")};
 
 
-	// Controller functions
-	void 		control_local_position(const matrix::Vector2f &current_position, const matrix::Vector3f &current_velocity, const matrix::Vector3f &current_angular_velocity);
-	void		control_velocity(const matrix::Vector3f &current_velocity, const matrix::Vector3f &current_angular_velocity, const float desired_linear_x_velocity, const float desired_angular_z_velocity);
-	void		control_attitude(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp);
-
 	DEFINE_PARAMETERS(
-		(ParamFloat<px4::params::GND_L1_PERIOD>) _param_l1_period,
-		(ParamFloat<px4::params::GND_L1_DAMPING>) _param_l1_damping,
-		(ParamFloat<px4::params::GND_L1_DIST>) _param_l1_distance,
-
-		(ParamFloat<px4::params::GND_SPEED_TRIM>) _param_gndspeed_trim,
-		(ParamFloat<px4::params::GND_SPEED_MAX>) _param_gndspeed_max,
-
-		(ParamInt<px4::params::GND_SP_CTRL_MODE>) _param_speed_control_mode,
-		(ParamFloat<px4::params::GND_SPEED_P>) _param_speed_p,
-		(ParamFloat<px4::params::GND_SPEED_I>) _param_speed_i,
-		(ParamFloat<px4::params::GND_SPEED_D>) _param_speed_d,
-		(ParamFloat<px4::params::GND_SPEED_IMAX>) _param_speed_imax,
-		(ParamFloat<px4::params::GND_SPEED_THR_SC>) _param_throttle_speed_scaler,
-
-		(ParamFloat<px4::params::GND_THR_MIN>) _param_throttle_min,
-		(ParamFloat<px4::params::GND_THR_MAX>) _param_throttle_max,
-		(ParamFloat<px4::params::GND_THR_CRUISE>) _param_throttle_cruise,
-
+		(ParamFloat<px4::params::ROVER_SPEED_MAX>) _param_speed_max,
+		(ParamFloat<px4::params::ROVER_THR_MIN>) _param_thr_min,
+		(ParamFloat<px4::params::ROVER_THR_MAX>) _param_thr_max,
 		(ParamFloat<px4::params::GND_WHEEL_BASE>) _param_wheel_base,
-		(ParamFloat<px4::params::GND_MAX_ANG>) _param_max_turn_angle,
-		(ParamFloat<px4::params::GND_MAN_Y_MAX>) _param_gnd_man_y_max,
-		(ParamFloat<px4::params::NAV_LOITER_RAD>) _param_nav_loiter_rad	/**< loiter radius for Rover */
-	)
-
-	// hrt_abstime _control_position_last_called{0}; 	/**<last call of control_position  */
-	// hrt_abstime _manual_setpoint_last_called{0};
-
-	// MapProjection _global_local_proj_ref{};
-
-	// /* Pid controller for the speed. Here we assume we can control airspeed but the control variable is actually on
-	//  the throttle. For now just assuming a proportional scaler between controlled airspeed and throttle output.*/
-	// PID_t _speed_ctrl{};
-	// PID_t _angular_speed_ctrl{};
-
-	// // estimator reset counters
-	// uint8_t _pos_reset_counter{0};		// captures the number of times the estimator has reset the horizontal position
-
-	// ECL_L1_Pos_Controller				_gnd_control;
-
-	// enum UGV_POSCTRL_MODE {
-	// 	UGV_POSCTRL_MODE_AUTO,
-	// 	UGV_POSCTRL_MODE_OTHER
-	// } _control_mode_current{UGV_POSCTRL_MODE_OTHER};			///< used to check the mode in the last control loop iteration. Use to check if the last iteration was in the same mode.
-
-
-	// enum POS_CTRLSTATES {
-	// 	GOTO_WAYPOINT,
-	// 	STOPPING
-	// } _pos_ctrl_state {STOPPING};			/// Position control state machine
-
-	// /* previous waypoint */
-	// matrix::Vector2d _prev_wp{0, 0};
-
-	// enum class VelocityFrame {
-	// 	NED,
-	// 	BODY,
-	// } _velocity_frame{VelocityFrame::NED};
-
-	// float _manual_yaw_sp{0.0};
-	// bool _reset_yaw_sp{true};
-	// // float _throttle_control{0.f};
-	// // float _yaw_control{0.f};
-
-
-
-
-
-	// void		position_setpoint_triplet_poll();
-	// void		attitude_setpoint_poll();
-	// void		vehicle_control_mode_poll();
-	// void 		vehicle_attitude_poll();
-	// void		manual_control_setpoint_poll();
-
+		(ParamFloat<px4::params::ROVER_KX>) _param_rover_kx,
+		(ParamFloat<px4::params::ROVER_KV>) _param_rover_kv,
+		(ParamFloat<px4::params::ROVER_KOMEGA>) _param_rover_komega,
+		(ParamFloat<px4::params::ROVER_WHEEL_MAX>) _param_wheel_max_speed)
 
 };

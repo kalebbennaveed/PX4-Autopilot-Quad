@@ -2,11 +2,11 @@ menuconfig MODULES_ROVER_CONTROL
 	bool "rover_control"
 	default n
 	---help---
-		Enable support for rover_pos_control
+		Enable support for rover_control
 
 menuconfig USER_ROVER_CONTROL
 	bool "rover_control running as userspace module"
 	default y
-	depends on BOARD_PROTECTED && MODULES_ROVER_POS_CONTROL
+	depends on BOARD_PROTECTED && MODULES_ROVER_CONTROL
 	---help---
 		Put rover_control in userspace memory
