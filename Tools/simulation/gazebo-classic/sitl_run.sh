@@ -63,6 +63,25 @@ if [ "$model" == "" ] || [ "$model" == "none" ]; then
 	model="iris"
 fi
 
+# specify the spawn location using arg
+if [[ -n "$PX4_SPAWN_LOCATION_X" ]]; then
+	spawn_x=$PX4_SPAWN_LOCATION_X
+else
+	spawn_x=1.01
+fi
+
+if [[ -n "$PX4_SPAWN_LOCATION_Y" ]]; then
+	spawn_y=$PX4_SPAWN_LOCATION_Y
+else
+	spawn_y=0.98
+fi
+
+if [[ -n "$PX4_SPAWN_LOCATION_Z" ]]; then
+	spawn_z=$PX4_SPAWN_LOCATION_Z
+else
+	spawn_z=0.83
+fi
+
 # kill process names that might stil
 # be running from last time
 pkill -x gazebo || true
@@ -101,7 +120,8 @@ if [ -x "$(command -v gazebo)" ]; then
 			world_path="$PX4_SITL_WORLD"
 		fi
 	fi
-	gzserver $verbose $world_path $ros_args &
+	echo world_path: $world_path
+       	gzserver $verbose $world_path $ros_args &
 	SIM_PID=$!
 
 	# Check all paths in ${GAZEBO_MODEL_PATH} for specified model
@@ -127,7 +147,7 @@ if [ -x "$(command -v gazebo)" ]; then
 		echo "Using: ${modelpath}/${model}/${model}.sdf"
 	fi
 
-	while gz model --verbose --spawn-file="${modelpath}/${model}/${model_name}.sdf" --model-name=${model} -x 1.01 -y 0.98 -z 0.83 2>&1 | grep -q "An instance of Gazebo is not running."; do
+	while gz model --verbose --spawn-file="${modelpath}/${model}/${model_name}.sdf" --model-name=${model} -x ${spawn_x} -y ${spawn_y} -z ${spawn_z} 2>&1 | grep -q "An instance of Gazebo is not running."; do
 		echo "gzserver not ready yet, trying again!"
 		sleep 1
 	done
