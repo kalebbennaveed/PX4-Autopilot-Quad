@@ -8,10 +8,12 @@ services:
     network_mode: "host"
     volumes:
       - ./:/home/px4
+      - /tmp/.X11-unix:/tmp/.X11-unix  
       #- /home/dasc/hardik/PX4-Autopilot-Quad:/home/px4
       #- /home/hardik/Desktop/Research/PX4-Autopilot-Quad:/home/px4
     environment:
             #- NVIDIA_DISABLE_REQUIRE=1
+      - QT_X11_NO_MITSHM=1
       - DISPLAY=$DISPLAY
         #- NVIDIA_VISIBLE_DEVICES=all
         #- NVIDIA_DRIVER_CAPABILITIES=all

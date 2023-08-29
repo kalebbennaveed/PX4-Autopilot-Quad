@@ -69,13 +69,15 @@ public:
 
 	// Controller and mix functions
 	void set_wheel_base(float b);
-	void set_controller_gains(float position_gain, float velocity_gain, float angle_gain, float max_wheel_speed);
+	void set_controller_gains(float position_gain, float velocity_gain, float angle_gain);
 	Vector2f mix(float linear_velocity, float angular_velocity);// So mixer receives the linear vel and angular vel and then returns the right and left wheel speed
 	void update_state_pos(vehicle_local_position_s pos);
 	void update_yaw(vehicle_attitude_s att);
 	void update_setpoint(trajectory_setpoint_s sp);
 	float wrap_angle(float angle);
-	Vector2f Rover_Controller();
+	Vector2f rover_controller();
+	void handle_command_raw(Vector2f cmd);
+	void handle_command_pos(Vector2f pos);
 
 private:
 	bool init();
@@ -86,7 +88,7 @@ private:
 
 	// Publications
 	uORB::Publication<actuator_motors_s> _actuator_motors_pub{ORB_ID(actuator_motors)};
-	uORB::Publication<actuator_outputs_s> _actuator_outputs_pub{ORB_ID(actuator_outputs)};
+	// uORB::Publication<actuator_outputs_s> _actuator_outputs_pub{ORB_ID(actuator_outputs)};
 	uORB::Publication<actuator_outputs_s> _actuator_outputs_sim_pub{ORB_ID(actuator_outputs_sim)};
 
 	//Subscriptions
@@ -122,15 +124,13 @@ private:
 	// SETPOINT
 	Vector3f pos_ref;
 	float yaw_ref, angular_vel_ref, linear_vel_ref;
+	Vector2f cmd_ = {0., 0.};
 
 	// Rover Controller gains
 	float kx, kv, komega;
 	float _rover_wheel_base;
 	float _rover_speed_max;
-	float _rover_throttle_min;
-	float _rover_throttle_max;
 	float _rover_ff_pwm;
-	float _rover_wheel_max_speed;
 
 	float _land_speed = 0.2f;
 
@@ -152,12 +152,9 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::ROVER_SPEED_MAX>) _param_speed_max,
-		(ParamFloat<px4::params::ROVER_THR_MIN>) _param_thr_min,
-		(ParamFloat<px4::params::ROVER_THR_MAX>) _param_thr_max,
 		(ParamFloat<px4::params::GND_WHEEL_BASE>) _param_wheel_base,
 		(ParamFloat<px4::params::ROVER_KX>) _param_rover_kx,
 		(ParamFloat<px4::params::ROVER_KV>) _param_rover_kv,
-		(ParamFloat<px4::params::ROVER_KOMEGA>) _param_rover_komega,
-		(ParamFloat<px4::params::ROVER_WHEEL_MAX>) _param_wheel_max_speed)
+		(ParamFloat<px4::params::ROVER_KOMEGA>) _param_rover_komega)
 
 };

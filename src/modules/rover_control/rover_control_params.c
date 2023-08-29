@@ -59,36 +59,3 @@ PARAM_DEFINE_FLOAT(ROVER_KOMEGA, 1.0f);
  * @group RoverControl
  */
 PARAM_DEFINE_FLOAT(ROVER_SPEED_MAX, 1.3f);
-
-/**
- * Min throttle magnitude for rover
- *
- * @min 0.0
- * @max 1.0
- * @decimal 3
- * @increment 0.01
- * @group RoverControl
- */
-PARAM_DEFINE_FLOAT(ROVER_THR_MIN, 0.00f);
-
-/**
- * Max throttle magnitude for rover
- *
- * @min 0.0
- * @max 1.0
- * @decimal 3
- * @increment 0.01
- * @group RoverControl
- */
-PARAM_DEFINE_FLOAT(ROVER_THR_MAX, 1.0f);
-
-/**
- * Max Rover Wheel speed
- *
- * @min 0.0
- * @max 20.0
- * @decimal 3
- * @increment 0.01
- * @group RoverControl
- */
-PARAM_DEFINE_FLOAT(ROVER_WHEEL_MAX, 1.3f);

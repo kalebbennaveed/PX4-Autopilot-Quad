@@ -89,6 +89,7 @@ bool PWMSim::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], un
 			}
 		}
 
+		PX4_WARN("I SHOULD NOT BE RUNNING");
 		actuator_outputs.timestamp = hrt_absolute_time();
 		_actuator_outputs_sim_pub.publish(actuator_outputs);
 		return true;

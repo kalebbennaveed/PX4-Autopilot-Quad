@@ -388,6 +388,12 @@ bool SimpleCommander::handle_command_arm() {
   return set_state(VehicleState::ARMED);
 }
 
+// Offboard added
+bool SimpleCommander::handle_command_offboard() {
+  PX4_INFO("COMMAND OFFBOARD");
+  return set_state(VehicleState::OFFBOARD);
+}
+
 bool SimpleCommander::handle_command_disarm() {
 
   PX4_INFO("COMMAND DISARM");
@@ -436,6 +442,11 @@ int SimpleCommander::custom_command(int argc, char *argv[]) {
 
   if (!strcmp(argv[0], "land")) {
     get_instance()->handle_command_land();
+    return 0;
+  }
+
+  if (!strcmp(argv[0], "offboard")) {
+    get_instance()->handle_command_offboard();
     return 0;
   }
 
