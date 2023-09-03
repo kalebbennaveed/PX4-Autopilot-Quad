@@ -802,7 +802,7 @@ MicroddsClient *MicroddsClient::instantiate(int argc, char *argv[])
 
 		for (uint8_t i=0; i<4; i++){
 			char param_name[17] = {0};
-			snprintf(param_name, 17, "XRCE_DISC_IP%u", i);
+			snprintf(param_name, 17, "XRCE_DISC_IP%u", i+1);
 			param_get(param_find(param_name), &server_ip_i[i]);
 			if (server_ip_i[i] < 0 || server_ip_i[i] > 255) {
 				PX4_ERR("discovery server ip address octects must each be between 0 and 255");
