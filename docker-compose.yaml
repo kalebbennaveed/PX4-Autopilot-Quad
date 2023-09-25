@@ -9,8 +9,11 @@ services:
     volumes:
       - ./:/home/px4
       - /tmp/.X11-unix:/tmp/.X11-unix  
+        #- /dev:/dev 
       #- /home/dasc/hardik/PX4-Autopilot-Quad:/home/px4
       #- /home/hardik/Desktop/Research/PX4-Autopilot-Quad:/home/px4
+    devices:
+      - "/dev/ttyACM1:/dev/ttyACM1"
     environment:
             #- NVIDIA_DISABLE_REQUIRE=1
       - QT_X11_NO_MITSHM=1

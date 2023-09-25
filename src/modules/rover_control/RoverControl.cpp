@@ -72,7 +72,6 @@ RoverControl::Run()
 	return;
 	}
 
-
 	perf_begin(_cycle_perf);
 
 	// Only progress if ang velocity is updated; otherwise, return
@@ -139,70 +138,70 @@ RoverControl::Run()
 	// float v = 0.0;
 
 	// Vector2f cmd(-1.0f, -1.0f);
-	// publish_cmd(cmd_);
+	publish_cmd(cmd_);
 	// ====================================
+	// PX4_INFO("commander status: %d, arming status: %d, _init: %d", _commander_status.state, _armed, _initialized);
 
-
-	if (!_initialized) {
-		float v = 0.05;
-		Vector2f cmd(v, v); // TODO: Need to change this
-		publish_cmd(cmd);
-		PX4_WARN("ARMED but not INITIALIZED");
-		perf_end(_cycle_perf);
-		return;
-	}
-
-	// if in armed mode, publish the min PWM
-	// PX4_WARN("_commander_status: %d ", _commander_status.state);
-	// if (_commander_status.state == commander_status_s::STATE_ARMED) {
-	// 	float v = 0.0;
-	// 	Vector2f cmd(v, v);
+	// if (!_initialized) {
+	// 	float v = 0.05;
+	// 	Vector2f cmd(v, v); // TODO: Need to change this
 	// 	publish_cmd(cmd);
+	// 	PX4_WARN("ARMED but not INITIALIZED");
 	// 	perf_end(_cycle_perf);
 	// 	return;
 	// }
 
-	// ================================== LAND =====================================
-	if (_commander_status.state == commander_status_s::STATE_LAND) {
+	// // if in armed mode, publish the min PWM
+	// // PX4_WARN("_commander_status: %d ", _commander_status.state);
+	// // if (_commander_status.state == commander_status_s::STATE_ARMED) {
+	// // 	float v = 0.0;
+	// // 	Vector2f cmd(v, v);
+	// // 	publish_cmd(cmd);
+	// // 	perf_end(_cycle_perf);
+	// // 	return;
+	// // }
 
-		// Stay there!
-		// Set _setpoint raw_mode to true and give the raw commands of zero angular and linear velocity
+	// // ================================== LAND =====================================
+	// if (_commander_status.state == commander_status_s::STATE_LAND) {
 
-		_setpoint.raw_mode = true;
-		_setpoint.cmd[0] = 0.0;
-		_setpoint.cmd[1] = 0.0;
-		// update_setpoint(_setpoint);
-	}
-	// ==============================================================================
+	// 	// Stay there!
+	// 	// Set _setpoint raw_mode to true and give the raw commands of zero angular and linear velocity
 
-	// if the code is here, it is in OFFBOARD MODE and with the correct setpoint
+	// 	_setpoint.raw_mode = true;
+	// 	_setpoint.cmd[0] = 0.0;
+	// 	_setpoint.cmd[1] = 0.0;
+	// 	// update_setpoint(_setpoint);
+	// }
+	// // ==============================================================================
 
-	PX4_WARN("Going into OFFBOARD MODE");
+	// // if the code is here, it is in OFFBOARD MODE and with the correct setpoint
 
-	if (_setpoint.raw_mode == false) {
-		PX4_WARN("raw mode was false");
-		// run controller
-		// _controller.run();
+	// PX4_WARN("Going into OFFBOARD MODE");
 
-		Vector2f linear_angular_cmd = rover_controller().zero_if_nan();
+	// if (_setpoint.raw_mode == false) {
+	// 	PX4_WARN("raw mode was false");
+	// 	// run controller
+	// 	// _controller.run();
 
-		// do the mixing
-		// Giving linear and angular velocity as arguments
-		Vector2f cmd = mix(linear_angular_cmd(0), linear_angular_cmd(1));
-		cmd.print();
-		// publish
-		publish_cmd(cmd);
+	// 	Vector2f linear_angular_cmd = rover_controller().zero_if_nan();
 
-	} else {
-		// *** What is the RAW MOTOR Mode // In rover's case should be the direct right and left wheel
-		PX4_WARN("IN RAW MOTOR MODE");
+	// 	// do the mixing
+	// 	// Giving linear and angular velocity as arguments
+	// 	Vector2f cmd = mix(linear_angular_cmd(0), linear_angular_cmd(1));
+	// 	cmd.print();
+	// 	// publish
+	// 	publish_cmd(cmd);
 
-		// copy from the _setpoint msg
-		Vector2f motor_cmd(_setpoint.cmd[0], _setpoint.cmd[1]);
+	// } else {
+	// 	// *** What is the RAW MOTOR Mode // In rover's case should be the direct right and left wheel
+	// 	PX4_WARN("IN RAW MOTOR MODE");
 
-		// publish
-		publish_cmd(motor_cmd);
-	}
+	// 	// copy from the _setpoint msg
+	// 	Vector2f motor_cmd(_setpoint.cmd[0], _setpoint.cmd[1]);
+
+	// 	// publish
+	// 	publish_cmd(motor_cmd);
+	// }
 
 	perf_end(_cycle_perf);
 
@@ -277,52 +276,52 @@ Vector2f RoverControl::rover_controller(){
 
 
 	float yaw_error = wrap_angle(yaw_ref - rover_yaw);
-	// Vector3f  ex = (pos_ref - rover_pos).zero_if_nan();
+	Vector3f  ex = (pos_ref - rover_pos).zero_if_nan();
 	// // PX4_INFO("ex %f, %f, %f", (double)ex(0), (double)ex(1), (double)ex(2));
 	// ex.print();
 	// rover_pos.print();
 
 
-	// const Dcmf R(matrix::Eulerf(0.0f,0.0f,rover_yaw));// body to world frame
+	const Dcmf R(matrix::Eulerf(0.0f,0.0f,rover_yaw));// body to world frame
 	// // R(0,0) =  cos(rover_yaw); R(0,1) = -sin(rover_yaw); R(0,2) = 0.0;
 	// // R(1,0) =  sin(rover_yaw); R(1,1) =  cos(rover_yaw); R(1,2) = 0.0;
 	// // R(2,0) =  0.0           ; R(2,1) = 0.0            ; R(2,2) = 1.0;
 
-	// Vector3f rover_vel_body = R.T() * rover_vel;
-	// float x_vel = rover_vel_body(0);
+	Vector3f rover_vel_body = R.T() * rover_vel;
+	float x_vel = rover_vel_body(0);
 
-	// float linear_vel_cmd = 0;
-	// float angular_vel_cmd = 0;
+	float linear_vel_cmd = 0;
+	float angular_vel_cmd = 0;
 
-	// if ( ex.norm() > _rover_wheel_base/2 ){
-	// 	float desired_linear_vel = kx * ex.norm() * cos(yaw_error);
-	// 	linear_vel_cmd = desired_linear_vel + kv * ( desired_linear_vel - x_vel );
-	// 	angular_vel_cmd = komega * yaw_error;
-	// }
-
-	// Vector2f lin_ang_cmd;
-	// lin_ang_cmd(0) = linear_vel_cmd;
-	// lin_ang_cmd(1) = angular_vel_cmd;
-	// // lin_ang_cmd.print();
-
-	// return lin_ang_cmd;
-
-	float k1 = 1.0f;
-	float k2 = 1.0f;
-	float k3 = 1.0f;
-
+	if ( ex.norm() > _rover_wheel_base/2 ){
+		float desired_linear_vel = kx * ex.norm() * cosf(yaw_error);
+		linear_vel_cmd = desired_linear_vel + kv * ( desired_linear_vel - x_vel );
+		angular_vel_cmd = komega * yaw_error;
+	}
 
 	Vector2f lin_ang_cmd;
-	// Error coordinates
-	float xe = cos(yaw_ref) * (rover_pos(0) - pos_ref(0)) + sin(yaw_ref) * (rover_pos(1) - pos_ref(1));
-	float ye = -sin(yaw_ref) * (rover_pos(0) - pos_ref(0)) + cos(yaw_ref) * (rover_pos(1) - pos_ref(1));
-
-
-	float linear_vel_cmd = (linear_vel_ref - k1 * abs(linear_vel_ref) * (xe + ye * tan(yaw_error)))/cos(yaw_error);
-	float angular_vel_cmd = angular_vel_ref - (k2 * linear_vel_ref * ye + k3 * abs(linear_vel_ref) * tan(yaw_error)) * powf(cos(yaw_error), 2);
-
 	lin_ang_cmd(0) = linear_vel_cmd;
 	lin_ang_cmd(1) = angular_vel_cmd;
+	// lin_ang_cmd.print();
+
+	return lin_ang_cmd;
+
+	// float k1 = 1.0f;
+	// float k2 = 1.0f;
+	// float k3 = 1.0f;
+
+
+	// Vector2f lin_ang_cmd;
+	// // Error coordinates
+	// float xe = cosf(yaw_ref) * (rover_pos(0) - pos_ref(0)) + sinf(yaw_ref) * (rover_pos(1) - pos_ref(1));
+	// float ye = -sinf(yaw_ref) * (rover_pos(0) - pos_ref(0)) + cosf(yaw_ref) * (rover_pos(1) - pos_ref(1));
+
+
+	// float linear_vel_cmd = (linear_vel_ref - k1 * fabsf(linear_vel_ref) * (xe + ye * tanf(yaw_error)))/cosf(yaw_error);
+	// float angular_vel_cmd = angular_vel_ref - (k2 * linear_vel_ref * ye + k3 * fabsf(linear_vel_ref) * tanf(yaw_error)) * powf(cosf(yaw_error), 2);
+
+	// lin_ang_cmd(0) = linear_vel_cmd;
+	// lin_ang_cmd(1) = angular_vel_cmd;
 
 	return lin_ang_cmd;
 
@@ -363,31 +362,34 @@ void RoverControl::publish_cmd(Vector2f cmd) {
   // cmd(1) -> left wheel speed
 
 //   PX4_INFO("publishing cmd: %f, %f", (double)cmd(0), (double)cmd(1));
-  {
-    // publish for sitl
-    actuator_outputs_s msg;
-    msg.timestamp = hrt_absolute_time();
-    msg.noutputs = 2;
-    for (size_t i = 0; i < 16; i++) {
-      msg.output[i] = 0.0f;
-    }
-    msg.output[0] = cmd(0);
-    msg.output[1] = cmd(0);
-    msg.output[5] = cmd(1);
-    msg.output[6] = cmd(1);
-    _actuator_outputs_sim_pub.publish(msg);
-  }
-
 //   {
-//     // publish for hardware
-//     actuator_motors_s msg;
+//     // publish for sitl
+//     actuator_outputs_s msg;
 //     msg.timestamp = hrt_absolute_time();
-//     msg.reversible_flags = 3; // no motors are reversible
-//     for (size_t i = 0; i < 2; i++) {
-//       msg.control[i] = cmd(i);
+//     msg.noutputs = 2;
+//     for (size_t i = 0; i < 16; i++) {
+//       msg.output[i] = 0.0f;
 //     }
-//     _actuator_motors_pub.publish(msg);
+//     msg.output[0] = cmd(0);
+//     msg.output[1] = cmd(0);
+//     msg.output[5] = cmd(1);
+//     msg.output[6] = cmd(1);
+//     _actuator_outputs_sim_pub.publish(msg);
 //   }
+
+  {
+    // publish for hardware
+    actuator_motors_s msg;
+    msg.timestamp = hrt_absolute_time();
+    msg.reversible_flags = 3; // all motors are reversible
+    for (size_t i = 0; i < 2; i++) {
+      msg.control[i] = cmd(i);
+    }
+	msg.control[0] = cmd(0);
+	msg.control[1] = cmd(1);
+	PX4_INFO("Publishing to motors pub");
+    _actuator_motors_pub.publish(msg);
+  }
 }
 
 
@@ -418,6 +420,7 @@ int RoverControl::custom_command(int argc, char *argv[]){
 
   if (!strcmp(argv[0], "raw")) {
 	Vector2f cmd  = {(float)atof(argv[1]), (float)atof(argv[2]) };
+	PX4_INFO("SENDING RAW COMMAND");
     get_instance()->handle_command_raw(cmd);
     return 0;
   }

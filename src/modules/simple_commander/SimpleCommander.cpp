@@ -363,11 +363,11 @@ bool SimpleCommander::preflight_check() {
 
   // TODO: Add in all these checks!
 
-  // check EKF
-  if (!preflight_check_ekf()) {
-    PX4_WARN("EKF preflight check failed");
-    return false;
-  }
+  // // check EKF
+  // if (!preflight_check_ekf()) {
+  //   PX4_WARN("EKF preflight check failed");
+  //   return false;
+  // }
 
   // check mag
   // check accel

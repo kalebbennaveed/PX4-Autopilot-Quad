@@ -11,7 +11,7 @@
  * @min 0.0
  * @decimal 3
  * @increment 0.01
- * @group Rover Position Control
+ * @group RoverControl
  */
 PARAM_DEFINE_FLOAT(GND_WHEEL_BASE, 0.31f);
 
@@ -22,7 +22,7 @@ PARAM_DEFINE_FLOAT(GND_WHEEL_BASE, 0.31f);
  * @max 50.0
  * @decimal 3
  * @increment 0.01
- * @group RoverControl
+ * @group RoverControlPosition
  */
 PARAM_DEFINE_FLOAT(ROVER_KX, 1.0f);
 
