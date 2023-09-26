@@ -85,6 +85,11 @@ RoverControl::Run()
 	/* run controller on gyro changes */
 	vehicle_angular_velocity_s angular_velocity;
 
+	publish_cmd(cmd_);
+
+	perf_end(_cycle_perf);
+
+	return;
 
 	// grab commander status
 	if (_commander_status_sub.update(&_commander_status)) {
@@ -138,7 +143,7 @@ RoverControl::Run()
 	// float v = 0.0;
 
 	// Vector2f cmd(-1.0f, -1.0f);
-	publish_cmd(cmd_);
+	// publish_cmd(cmd_);
 	// ====================================
 	// PX4_INFO("commander status: %d, arming status: %d, _init: %d", _commander_status.state, _armed, _initialized);
 
@@ -362,32 +367,33 @@ void RoverControl::publish_cmd(Vector2f cmd) {
   // cmd(1) -> left wheel speed
 
 //   PX4_INFO("publishing cmd: %f, %f", (double)cmd(0), (double)cmd(1));
-//   {
-//     // publish for sitl
-//     actuator_outputs_s msg;
-//     msg.timestamp = hrt_absolute_time();
-//     msg.noutputs = 2;
-//     for (size_t i = 0; i < 16; i++) {
-//       msg.output[i] = 0.0f;
-//     }
-//     msg.output[0] = cmd(0);
-//     msg.output[1] = cmd(0);
-//     msg.output[5] = cmd(1);
-//     msg.output[6] = cmd(1);
-//     _actuator_outputs_sim_pub.publish(msg);
-//   }
+  {
+    actuator_outputs_s msg;
+    msg.timestamp = hrt_absolute_time();
+    msg.noutputs = 2;
+    for (size_t i = 0; i < actuator_outputs_s::NUM_ACTUATOR_OUTPUTS; i++) {
+      msg.output[i] = 0.0f;
+    }
+    msg.output[0] = cmd(0);
+    msg.output[1] = cmd(1);
+    _actuator_outputs_pub.publish(msg);
+    _actuator_outputs_sim_pub.publish(msg);
+  }
 
   {
     // publish for hardware
     actuator_motors_s msg;
     msg.timestamp = hrt_absolute_time();
     msg.reversible_flags = 3; // all motors are reversible
+    // set all to 0 first
+    for (size_t i = 0; i < actuator_motors_s::NUM_CONTROLS; i++) {
+      msg.control[i] = 0;
+    }
+    // set the desired ones to the desired values
     for (size_t i = 0; i < 2; i++) {
       msg.control[i] = cmd(i);
     }
-	msg.control[0] = cmd(0);
-	msg.control[1] = cmd(1);
-	PX4_INFO("Publishing to motors pub");
+    PX4_INFO("Publishing to motors pub");
     _actuator_motors_pub.publish(msg);
   }
 }
@@ -420,7 +426,8 @@ int RoverControl::custom_command(int argc, char *argv[]){
 
   if (!strcmp(argv[0], "raw")) {
 	Vector2f cmd  = {(float)atof(argv[1]), (float)atof(argv[2]) };
-	PX4_INFO("SENDING RAW COMMAND");
+	PX4_INFO("SENDING RAW COMMAND %.2f %.2f", (double)cmd(0), (double)cmd(1));
+
     get_instance()->handle_command_raw(cmd);
     return 0;
   }
