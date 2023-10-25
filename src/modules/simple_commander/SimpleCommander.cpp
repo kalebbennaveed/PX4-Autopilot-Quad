@@ -11,10 +11,31 @@ SimpleCommander::SimpleCommander() : ModuleParams(nullptr) {
   _boot_timestamp = hrt_absolute_time();
   _last_preflight_check = hrt_absolute_time();
   _last_arm_status_pub = hrt_absolute_time();
+
+  update_parameters();
 }
 
 SimpleCommander::~SimpleCommander() {
   // perf_free();
+}
+
+void SimpleCommander::update_parameters()
+{
+
+  if (_parameter_update_sub.updated()) {
+
+    parameter_update_s pupdate;
+    _parameter_update_sub.copy(&pupdate);
+
+    ModuleParams::updateParams();
+
+    PX4_WARN("updateParams");
+    
+    check_preflight_arming_ = param_check_preflight_arming_.get();
+    check_preflight_offboard_ = param_check_preflight_offboard_.get();
+
+  }
+
 }
 
 void SimpleCommander::handle_parameter_req() {
@@ -65,6 +86,7 @@ void SimpleCommander::handle_parameter_req() {
   }
 
   _parameter_res_pub.publish(res);
+  update_parameters();
 }
 
 void SimpleCommander::run() {
@@ -72,12 +94,7 @@ void SimpleCommander::run() {
   while (!should_exit()) {
 
     // check for parameter updates
-    const bool params_updated = _parameter_update_sub.updated();
-    if (params_updated) {
-      parameter_update_s update;
-      _parameter_update_sub.copy(&update);
-      updateParams();
-    }
+    update_parameters();
 
     // check for parameter get/set
     if (_parameter_req_sub.updated()) {
@@ -97,15 +114,19 @@ void SimpleCommander::run() {
       _commander_set_state_sub.copy(&msg);
 
       if (msg.new_state == commander_set_state_s::STATE_DISARMED) {
+        PX4_INFO("Setting state VehicleState::DISARMED because received commander_set_state msg");
         set_state(VehicleState::DISARMED);
       }
       if (msg.new_state == commander_set_state_s::STATE_ARMED) {
+        PX4_INFO("Setting state VehicleState::ARMED because received commander_set_state msg");
         set_state(VehicleState::ARMED);
       }
       if (msg.new_state == commander_set_state_s::STATE_OFFBOARD) {
+        PX4_INFO("Setting state VehicleState::OFFBOARD because received commander_set_state msg");
         set_state(VehicleState::OFFBOARD);
       }
       if (msg.new_state == commander_set_state_s::STATE_LAND) {
+        PX4_INFO("Setting state VehicleState::LAND because received commander_set_state msg");
         set_state(VehicleState::LAND);
       }
     }
@@ -113,6 +134,26 @@ void SimpleCommander::run() {
     // publish arming status
     if (hrt_elapsed_time(&_last_arm_status_pub) > 500_ms) {
       publish_status();
+    }
+    
+    // publish simplified battery status
+    if (_battery_status_sub.updated()) {
+      battery_status_s msg; 
+      simple_battery_status_s simple_msg;
+      _battery_status_sub.copy(&msg);
+      simple_msg.timestamp = msg.timestamp;
+      simple_msg.voltage_v = msg.voltage_v;
+        simple_msg.voltage_filtered_v = msg.voltage_filtered_v;
+        simple_msg.current_a          = msg.current_a;
+        simple_msg.current_filtered_a = msg.current_filtered_a;
+        simple_msg.current_average_a  = msg.current_average_a;
+        simple_msg.discharged_mah     = msg.discharged_mah;
+        simple_msg.remaining          = msg.remaining;
+        simple_msg.scale              = msg.scale;
+        simple_msg.time_remaining_s   = msg.time_remaining_s;
+        simple_msg.cell_count         = msg.cell_count;
+
+        _simple_battery_status_pub.publish(simple_msg);
     }
 
     run_state_machine();
@@ -142,8 +183,8 @@ bool SimpleCommander::set_state(VehicleState new_state) {
       return false;
     }
 
-    if (!preflight_check()) {
-      // PX4_WARN("ARMING DENIED! Vehicle did not pass preflight checks.");
+    if (check_preflight_arming_ && !preflight_check()) {
+      PX4_WARN("ARMING DENIED! Vehicle did not pass preflight checks.");
       return false;
     }
 
@@ -155,6 +196,11 @@ bool SimpleCommander::set_state(VehicleState new_state) {
   case VehicleState::OFFBOARD:
     if (_state != VehicleState::ARMED) {
       PX4_WARN("OFFBOARD MODE DENIED! Vehicle is not currently armed.");
+      return false;
+    }
+    
+    if (!preflight_check()) {
+      PX4_WARN("OFFBOARD MODE DENIED! Vehicle did not pass preflight checks.");
       return false;
     }
 
@@ -262,6 +308,7 @@ void SimpleCommander::run_state_machine() {
 
     // offboard control timeout
     if (hrt_elapsed_time(&_last_timestamp_offboard) > 200_ms) {
+      PX4_WARN("Setting VehicleState::LAND because offboard_timestamp timeout");
       set_state(VehicleState::LAND);
     }
 
@@ -271,6 +318,7 @@ void SimpleCommander::run_state_machine() {
 
     // timeout on landing time
     if (hrt_elapsed_time(&_last_land_cmd_started) > 30_s) {
+      PX4_WARN("Setting VehicleState::DISARMED because land mode timeout");
       set_state(VehicleState::DISARMED);
     }
 
@@ -344,11 +392,10 @@ bool SimpleCommander::preflight_check_ekf() {
       return false;
     }
 
-    // TODO: put this check back in!
-    // if (!ekf_state.heading_good_for_control){
-    // 	PX4_WARN("EKF heading not valid");
-    // 	return false;
-    // }
+    if (!ekf_state.heading_good_for_control){
+    	PX4_WARN("EKF heading not valid");
+    	return false;
+    }
   }
 
   return true;
@@ -388,6 +435,11 @@ bool SimpleCommander::handle_command_arm() {
   return set_state(VehicleState::ARMED);
 }
 
+bool SimpleCommander::handle_command_offboard() {
+  PX4_INFO("COMMAND OFFBOARD");
+  return set_state(VehicleState::OFFBOARD);
+}
+
 bool SimpleCommander::handle_command_disarm() {
 
   PX4_INFO("COMMAND DISARM");
@@ -421,6 +473,7 @@ int SimpleCommander::custom_command(int argc, char *argv[]) {
     get_instance()->handle_command_arm();
     return 0;
   }
+  
 
   if (!strcmp(argv[0], "force_arm")) {
     PX4_WARN("Force arming...");
@@ -428,14 +481,19 @@ int SimpleCommander::custom_command(int argc, char *argv[]) {
     get_instance()->publish_status();
     return 0;
   }
-
-  if (!strcmp(argv[0], "disarm")) {
-    get_instance()->handle_command_disarm();
+  
+  if (!strcmp(argv[0], "offboard")) {
+    get_instance()->handle_command_offboard();
     return 0;
   }
 
   if (!strcmp(argv[0], "land")) {
     get_instance()->handle_command_land();
+    return 0;
+  }
+  
+  if (!strcmp(argv[0], "disarm")) {
+    get_instance()->handle_command_disarm();
     return 0;
   }
 
@@ -483,6 +541,7 @@ A simplified Commander module
   PRINT_MODULE_USAGE_COMMAND("start");
   PRINT_MODULE_USAGE_COMMAND("arm");
   PRINT_MODULE_USAGE_COMMAND("force_arm");
+  PRINT_MODULE_USAGE_COMMAND("offboard");
   PRINT_MODULE_USAGE_COMMAND("disarm");
   PRINT_MODULE_USAGE_COMMAND("preflight_check");
   PRINT_MODULE_USAGE_COMMAND("land");

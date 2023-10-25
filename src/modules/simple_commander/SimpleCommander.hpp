@@ -12,6 +12,7 @@
 #include <uORB/topics/trajectory_setpoint.h>
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/simple_battery_status.h>
 
 // Subscriptions
 #include <uORB/Subscription.hpp>
@@ -21,6 +22,7 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/trajectory_setpoint.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/battery_status.h>
 
 using namespace time_literals;
 
@@ -64,6 +66,8 @@ private:
 
   void publish_status();
 
+  void update_parameters();
+
   // Publishers
   uORB::Publication<trajectory_setpoint_s> _trajectory_setpoint_pub{
       ORB_ID(trajectory_setpoint)};
@@ -76,6 +80,7 @@ private:
   uORB::Publication<commander_status_s> _commander_status_pub{
       ORB_ID(commander_status)};
   uORB::Publication<parameter_res_s> _parameter_res_pub{ORB_ID(parameter_res)};
+  uORB::Publication<simple_battery_status_s> _simple_battery_status_pub{ORB_ID(simple_battery_status)};
 
   // Subscribers
   uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update),
@@ -85,6 +90,7 @@ private:
   uORB::Subscription _trajectory_setpoint_sub{ORB_ID(trajectory_setpoint)};
   uORB::Subscription _commander_set_state_sub{ORB_ID(commander_set_state)};
   uORB::Subscription _parameter_req_sub{ORB_ID(parameter_req)};
+  uORB::SubscriptionInterval _battery_status_sub{ORB_ID(battery_status), 1_s};
 
   VehicleState _state = VehicleState::DISARMED;
   hrt_abstime _boot_timestamp{0};
@@ -92,4 +98,14 @@ private:
   hrt_abstime _last_arm_status_pub{0};
   hrt_abstime _last_timestamp_offboard{0};
   hrt_abstime _last_land_cmd_started{0};
+
+  bool check_preflight_arming_ = false;
+  bool check_preflight_offboard_ = true;
+
+
+  DEFINE_PARAMETERS(
+      (ParamInt<px4::params::COMM_PREFL_ARM>)param_check_preflight_arming_,
+      (ParamInt<px4::params::COMM_PREFL_OFFB>)param_check_preflight_offboard_
+      );
+
 };
