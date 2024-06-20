@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+  px4-rover:
+    build: .
+    privileged: true
+    tty: true
+    network_mode: "host"
+    volumes:
+      - ./:/home/px4
+      - /tmp/.X11-unix:/tmp/.X11-unix  
+      - "/dev/ttyACM1:/dev/ttyACM1"
+    environment:
+      - QT_X11_NO_MITSHM=1
+      - DISPLAY=$DISPLAY
