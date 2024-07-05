@@ -4,6 +4,8 @@
 
 using namespace matrix;
 
+// The initial commit...
+
 float _sq(float x) { return x * x; }
 
 float _cube(float x) { return x * x * x; }
